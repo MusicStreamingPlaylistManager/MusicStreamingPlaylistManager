@@ -1,0 +1,20 @@
+# Maven
+target/
+
+# NetBeans
+nbproject/private/
+build/
+dist/
+nbbuild/
+nbdist/
+.nb-gradle/
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local config
+src/main/resources/db.properties
