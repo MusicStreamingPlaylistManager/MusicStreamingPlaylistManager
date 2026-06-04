@@ -9,7 +9,7 @@ import java.sql.DriverManager;
 import java.sql.SQLException;
 
 /**
- * Lớp tiện ích hỗ trợ kết nối đến cơ sở dữ liệu PostgreSQL cục bộ (Local)
+ * Lớp tiện ích hỗ trợ kết nối đến cơ sở dữ liệu PostgreSQL cục bộ (Local)  
  * @author huynh
  */
 public class DBUtils {
