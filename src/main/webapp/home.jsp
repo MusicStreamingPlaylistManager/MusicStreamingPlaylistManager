@@ -142,7 +142,7 @@
     picksGrid.innerHTML = songs.map(t => `
       <div class="pick-card" onclick="App.playTrack(\${JSON.stringify(t).replace(/\"/g,'&quot;')})">
         <div class="pick-cover">
-          \${t.coverPath ? `<img src="\${t.coverPath}" alt="">` : `<span>\${t.emoji || '🎵'}</span>`}
+          \${t.coverPath ? `<img src="\${t.coverPath}" alt="">` : `<span>\${t.emoji || '🎵'}</span>`} 
           <div class="pick-play">
             <svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg>
           </div>
