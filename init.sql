@@ -1,8 +1,8 @@
 -- Chạy dòng này ở db postgres
-DROP DATABASE IF EXISTS music_streaming_db WITH (FORCE);
+-- DROP DATABASE IF EXISTS music_streaming_db WITH (FORCE);
 
--- Xong mới chạy dòng này
-CREATE DATABASE music_streaming_db;
+-- -- Xong mới chạy dòng này
+-- CREATE DATABASE music_streaming_db;
 
 -- Rồi chạy đống dưới này
 CREATE TABLE Users (
