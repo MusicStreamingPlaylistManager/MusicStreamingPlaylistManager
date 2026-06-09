@@ -1,4 +1,4 @@
-<%@ page contentType="text/html;charset=UTF-8" language="java" %>
+<%@ page contentType="text/html;charset=UTF-8" language="java" isELIgnored="true" %>
 <%
   if (session.getAttribute("user") == null) {
     response.sendRedirect(request.getContextPath() + "/login.jsp");
@@ -124,7 +124,7 @@ function renderTracks() {
       : 'No songs yet. Search for songs and add them here.';
     list.innerHTML = `<div class="empty-msg">
       <span>🎵</span>
-      <span>\${msg}</span>
+      <span>${msg}</span>
     </div>`;
     return;
   }
@@ -132,43 +132,44 @@ function renderTracks() {
   list.innerHTML = tracks.map((t, i) => {
     const isFav = App.getState().favorites.has(t.songId);
     const cover = t.coverPath
-      ? `<img src="\${t.coverPath}" alt="">`
-      : `<span style="font-size:1.3rem">\${t.emoji || '🎵'}</span>`;
+      ? `<img src="${t.coverPath}" alt="">`
+      : `<span style="font-size:1.3rem">${t.emoji || '🎵'}</span>`;
+    const trackJson = JSON.stringify(t).replace(/"/g, '&quot;');
     return `
-      <div class="track-item" data-id="\${t.songId}"
-           draggable="\${!IS_FAVOURITE}"
-           ondragstart="dragStart(event, \${i})"
+      <div class="track-item" data-id="${t.songId}"
+           draggable="${!IS_FAVOURITE}"
+           ondragstart="dragStart(event, ${i})"
            ondragover="dragOver(event)"
-           ondrop="drop(event, \${i})"
-           ondblclick="App.playTrack(\${JSON.stringify(t).replace(/\"/g,'&quot;')})">
-        <span class="track-num">\${i + 1}</span>
+           ondrop="drop(event, ${i})"
+           ondblclick="App.playTrack(${trackJson})">
+        <span class="track-num">${i + 1}</span>
         <span class="track-play-icon">
           <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <polygon points="5,3 19,12 5,21"/>
           </svg>
         </span>
-        <div class="track-thumb">\${cover}</div>
+        <div class="track-thumb">${cover}</div>
         <div class="track-info">
-          <div class="t-name">\${t.title}</div>
-          <div class="t-artist">\${t.artist}</div>
+          <div class="t-name">${t.title}</div>
+          <div class="t-artist">${t.artist}</div>
         </div>
         <div class="track-actions">
-          \${IS_FAVOURITE
+          ${IS_FAVOURITE
             ? `<button class="heart-btn liked"
-                      onclick="event.stopPropagation(); removeFav(\${t.songId})"
+                      onclick="event.stopPropagation(); removeFav(${t.songId})"
                       title="Remove from favourites">
                  <svg viewBox="0 0 24 24" width="18" height="18" stroke="#ef4444" fill="#ef4444" stroke-width="2">
                    <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/>
                  </svg>
                </button>`
             : `<button class="heart-btn" style="color:var(--red)"
-                      onclick="event.stopPropagation(); removeFromPlaylist(\${t.songId})"
+                      onclick="event.stopPropagation(); removeFromPlaylist(${t.songId})"
                       title="Remove from playlist">
                  <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                    <use href="#ic-trash"/>
                  </svg>
                </button>`}
-          <span class="track-dur">\${t.durationStr || ''}</span>
+          <span class="track-dur">${t.durationStr || ''}</span>
         </div>
       </div>`;
   }).join('');
@@ -176,8 +177,20 @@ function renderTracks() {
 
 function playAll() {
   if (!tracks.length) { App.showToast('No songs to play'); return; }
-  App.playTrack(tracks[0]);
-  App.showToast('▶ Playing playlist');
+  if (IS_FAVOURITE || !PLAYLIST_ID) {
+    App.playTrack(tracks[0]);
+    App.showToast('▶ Playing playlist');
+    return;
+  }
+  App.API.postForm('/api/player/play', {
+    songId: tracks[0].songId,
+    playlistId: PLAYLIST_ID
+  }).then(res => {
+    if (res && res.track) {
+      App.applyTrack(res.track, res.waitList);
+      App.showToast('▶ Playing playlist');
+    }
+  });
 }
 
 async function removeFav(songId) {

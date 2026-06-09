@@ -1,6 +1,15 @@
 // ===== SOUNDWAVE - GLOBAL APP JS =====
 // Handles: player state, API calls to Servlets, shared utilities
 
+function resolveContextPath() {
+  if (window.APP_CONTEXT) return window.APP_CONTEXT;
+  const path = window.location.pathname;
+  const slash = path.lastIndexOf('/');
+  return slash > 0 ? path.substring(0, slash) : '';
+}
+
+const APP_BASE = window.location.origin + resolveContextPath();
+
 const App = (() => {
   // --- State ---
   let state = {
@@ -14,21 +23,33 @@ const App = (() => {
     favorites: new Set(),
   };
 
-  // Simulated progress timer (real audio playback would hook into <audio> events)
-  let progressTimer = null;
   let progressSeconds = 0;
   let durationSeconds = 0;
 
   // --- API helpers ---
   const API = {
-    base: window.location.origin + '/soundwave',
+    base: APP_BASE,
 
     async get(url) {
       try {
         const r = await fetch(this.base + url);
-        if (!r.ok) throw new Error(r.statusText);
-        return await r.json();
-      } catch(e) { console.error('GET', url, e); return null; }
+        const text = await r.text();
+        let data;
+        try {
+          data = text ? JSON.parse(text) : null;
+        } catch (parseErr) {
+          console.error('GET parse error', url, text);
+          return { error: 'Invalid JSON from server', _failed: true };
+        }
+        if (!r.ok) {
+          console.error('GET', url, r.status, data);
+          return { error: (data && data.error) || r.statusText, _failed: true };
+        }
+        return data;
+      } catch(e) {
+        console.error('GET', url, e);
+        return { error: e.message, _failed: true };
+      }
     },
 
     async post(url, body) {
@@ -50,48 +71,129 @@ const App = (() => {
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
           body: new URLSearchParams(params)
         });
-        if (!r.ok) throw new Error(r.statusText);
-        return await r.json();
+        const text = await r.text();
+        return text ? JSON.parse(text) : null;
       } catch(e) { console.error('POST form', url, e); return null; }
     }
   };
 
+  // HTML5 Audio player
+  let audio = new Audio();
+
+  function initAudio() {
+    audio.addEventListener('timeupdate', () => {
+      if (!audio.duration || isNaN(audio.duration)) return;
+      progressSeconds = Math.floor(audio.currentTime);
+      durationSeconds = Math.floor(audio.duration);
+      state.progressPct = (audio.currentTime / audio.duration) * 100;
+      _updateProgressUI();
+    });
+
+    audio.addEventListener('loadedmetadata', () => {
+      if (!audio.duration || isNaN(audio.duration)) return;
+      durationSeconds = Math.floor(audio.duration);
+      _updateProgressUI();
+    });
+
+    audio.addEventListener('ended', () => {
+      if (state.isLoop === 'one') {
+        audio.currentTime = 0;
+        audio.play().catch(() => {});
+        return;
+      }
+      nextTrack();
+    });
+
+    audio.addEventListener('play', () => {
+      state.isPlaying = true;
+      _updatePlayBtns();
+    });
+
+    audio.addEventListener('pause', () => {
+      state.isPlaying = false;
+      _updatePlayBtns();
+    });
+  }
+
+  function _audioSrc(track) {
+    if (!track || !track.filePath) return '';
+    return resolveContextPath() + track.filePath;
+  }
+
+  function _loadAndPlay(track) {
+    const src = _audioSrc(track);
+    if (!src) return;
+
+    const needsReload = !audio.src || !audio.src.endsWith(track.filePath);
+    audio.volume = state.volume / 100;
+
+    if (needsReload) {
+      audio.src = src;
+      audio.load();
+    }
+
+    if (state.isPlaying) {
+      audio.play().catch(err => console.warn('Audio play blocked:', err));
+    }
+  }
+
   // --- Player ---
-  function playTrack(track) {
+  function applyTrack(track, waitList, autoplay) {
+    if (autoplay === undefined) autoplay = true;
+
     state.currentTrack = track;
-    state.isPlaying = true;
+    state.isPlaying = autoplay;
     progressSeconds = 0;
     durationSeconds = track.duration || 0;
 
     _updatePlayerUI();
-    _startProgress();
-    _syncWaitList();
+    _loadAndPlay(track);
+
+    if (waitList) _setWaitList(waitList);
+  }
+
+  function playTrack(track) {
+    applyTrack(track);
     showToast('▶ ' + track.title);
 
-    // Notify server: push to history stack, update session waiting list
     API.postForm('/api/player/play', { songId: track.songId })
-       .then(res => { if (res && res.waitList) _setWaitList(res.waitList); });
+       .then(res => {
+         if (res && res.track) applyTrack(res.track, res.waitList);
+         else if (res && res.waitList) _setWaitList(res.waitList);
+       });
   }
 
   function togglePlay() {
     if (!state.currentTrack) return;
     state.isPlaying = !state.isPlaying;
+    if (state.isPlaying) {
+      audio.play().catch(err => console.warn('Audio play blocked:', err));
+    } else {
+      audio.pause();
+    }
     _updatePlayBtns();
-    if (state.isPlaying) _startProgress(); else _stopProgress();
     showToast(state.isPlaying ? '▶ Resume' : '⏸ Paused');
   }
 
   function nextTrack() {
     API.get('/api/player/next').then(res => {
-      if (res && res.track) playTrack(res.track);
-      else showToast('⏭ End of queue');
+      if (res && res.track) {
+        applyTrack(res.track, res.waitList);
+        showToast('▶ ' + res.track.title);
+      } else {
+        showToast('⏭ End of queue');
+      }
     });
   }
 
   function prevTrack() {
     API.get('/api/player/prev').then(res => {
-      if (res && res.track) playTrack(res.track);
-      else showToast('⏮ Start of queue');
+      if (res && res.track) {
+        applyTrack(res.track, res.waitList);
+        showToast('▶ ' + res.track.title);
+      } else {
+        showToast('⏮ Start of queue');
+      }
     });
   }
 
@@ -115,14 +217,29 @@ const App = (() => {
 
   function seekTo(pct) {
     state.progressPct = pct;
-    progressSeconds = Math.round(pct * durationSeconds / 100);
+    if (audio.duration && !isNaN(audio.duration)) {
+      audio.currentTime = (pct / 100) * audio.duration;
+      progressSeconds = Math.floor(audio.currentTime);
+    } else {
+      progressSeconds = Math.round(pct * durationSeconds / 100);
+    }
     _updateProgressUI();
   }
 
   function setVolume(val) {
     state.volume = val;
-    const fill = document.querySelectorAll('.vol-slider');
-    fill.forEach(s => s.value = val);
+    audio.volume = val / 100;
+    document.querySelectorAll('.vol-slider').forEach(s => s.value = val);
+  }
+
+  async function saveWaitingAsPlaylist(name) {
+    const res = await API.postForm('/api/player/save-waiting', { name });
+    if (res && res.success) {
+      showToast('✅ Saved as playlist');
+      return res.playlistId;
+    }
+    showToast('⚠ Could not save playlist');
+    return null;
   }
 
   // Favorites
@@ -148,28 +265,7 @@ const App = (() => {
     if (res && res.songIds) state.favorites = new Set(res.songIds);
   }
 
-  // --- Progress ---
-  function _startProgress() {
-    _stopProgress();
-    if (durationSeconds <= 0) return;
-    progressTimer = setInterval(() => {
-      progressSeconds++;
-      state.progressPct = (progressSeconds / durationSeconds) * 100;
-      if (state.progressPct >= 100) {
-        state.progressPct = 100;
-        _stopProgress();
-        // Auto-next after track ends
-        setTimeout(() => nextTrack(), 500);
-      }
-      _updateProgressUI();
-    }, 1000);
-  }
-
-  function _stopProgress() {
-    if (progressTimer) clearInterval(progressTimer);
-    progressTimer = null;
-  }
-
+  // --- Progress (driven by audio.timeupdate) ---
   function _formatTime(secs) {
     const m = Math.floor(secs / 60);
     const s = secs % 60;
@@ -303,6 +399,7 @@ const App = (() => {
 
   // --- Init ---
   function init() {
+    initAudio();
     initTheme();
     initProgressBars();
     initVolume();
@@ -310,13 +407,49 @@ const App = (() => {
     loadFavorites();
   }
 
+  function renderTrackItem(t, num) {
+    const isFav = state.favorites.has(t.songId);
+    const cover = t.coverPath
+      ? `<img src="${t.coverPath}" alt="">`
+      : `<span style="font-size:1.3rem">${t.emoji || '🎵'}</span>`;
+    const trackJson = JSON.stringify(t).replace(/"/g, '&quot;');
+    return `
+    <div class="track-item" ondblclick="App.playTrack(${trackJson})">
+      <span class="track-num">${num}</span>
+      <span class="track-play-icon"><svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5,3 19,12 5,21"/></svg></span>
+      <div class="track-thumb">${cover}</div>
+      <div class="track-info">
+        <div class="t-name">${t.title}</div>
+        <div class="t-artist">${t.artist}</div>
+      </div>
+      <div class="track-actions">
+        <button class="heart-btn ${isFav ? 'liked' : ''}"
+                onclick="event.stopPropagation(); App.toggleFavorite(${t.songId}, this)"
+                title="Favourite">
+          <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor"
+               fill="${isFav ? 'currentColor' : 'none'}"
+               stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/>
+          </svg>
+        </button>
+        <span class="track-dur">${t.durationStr || ''}</span>
+      </div>
+    </div>`;
+  }
+
   return {
     init, state, API,
-    playTrack, togglePlay, nextTrack, prevTrack,
-    toggleShuffle, toggleLoop, seekTo, toggleFavorite,
+    playTrack, applyTrack, togglePlay, nextTrack, prevTrack,
+    toggleShuffle, toggleLoop, seekTo, toggleFavorite, saveWaitingAsPlaylist,
     showToast, loadFavorites,
     getState: () => state,
+    renderTrackItem,
   };
 })();
+
+// Global alias for inline scripts in JSP pages
+function renderTrackItem(t, num) {
+  return App.renderTrackItem(t, num);
+}
 
 document.addEventListener('DOMContentLoaded', () => App.init());

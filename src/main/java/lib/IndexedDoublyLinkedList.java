@@ -95,4 +95,22 @@ public class IndexedDoublyLinkedList {
 
     public Node getHead() { return this.head; }
     public Node getTail() { return this.tail; }
+
+    public boolean contains(int songId) {
+        return songIndex.containsKey(songId);
+    }
+
+    public Node getNodeById(int songId) {
+        return songIndex.get(songId);
+    }
+
+    public DynamicArrayList toSongList() {
+        DynamicArrayList songs = new DynamicArrayList();
+        Node current = head;
+        while (current != null) {
+            songs.add(current.data);
+            current = current.next;
+        }
+        return songs;
+    }
 }

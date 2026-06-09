@@ -5,20 +5,19 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.Statement;
 import utils.DBUtils;
+import utils.PasswordUtils;
 
 public class UserDAO {
 
     public User login(String username, String password) throws Exception {
-        String sql = "SELECT * FROM Users WHERE username = ? AND password = ?";
-        try (Connection conn = DBUtils.getConnection();
-            PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, username);
-            ps.setString(2, password);
-
-            try (ResultSet rs = ps.executeQuery()) {
-                return rs.next() ? mapUser(rs) : null; //kh tìm thấy user thì trả về null
-            }
+        User user = getByUsername(username);
+        if (user == null) {
+            return null;
         }
+        if (!PasswordUtils.verify(password, user.getPassword())) {
+            return null;
+        }
+        return user;
     }
 
     public boolean usernameExists(String username) throws Exception {
@@ -36,7 +35,7 @@ public class UserDAO {
 
     public int register(String username, String password, String role) throws Exception {
         if (usernameExists(username)) {
-            return -1; // duplicate username
+            return -1;
         }
 
         String sql = "INSERT INTO Users (Username, Password, Role) VALUES (?, ?, ?)";
@@ -44,7 +43,7 @@ public class UserDAO {
              PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
 
             ps.setString(1, username);
-            ps.setString(2, password);
+            ps.setString(2, PasswordUtils.hash(password));
             ps.setString(3, role);
 
             int affected = ps.executeUpdate();

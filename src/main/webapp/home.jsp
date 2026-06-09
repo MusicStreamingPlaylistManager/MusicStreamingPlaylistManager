@@ -1,4 +1,4 @@
-<%@ page contentType="text/html;charset=UTF-8" language="java" %>
+<%@ page contentType="text/html;charset=UTF-8" language="java" isELIgnored="true" %>
 <%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c" %>
 <%
     if (session.getAttribute("user") == null) {
@@ -209,20 +209,22 @@
             // Load picks
             const songs = await App.API.get('/api/songs?limit=5');
             const picksGrid = document.getElementById('picksGrid');
-            if (songs && songs.length) {
+            if (Array.isArray(songs) && songs.length) {
             picksGrid.innerHTML = songs.map(t => `
-              <div class="pick-card" onclick="App.playTrack(\${JSON.stringify(t).replace(/\"/g,'&quot;')})">
+              <div class="pick-card" onclick="App.playTrack(${JSON.stringify(t).replace(/"/g,'&quot;')})">
                 <div class="pick-cover">
-                  \${t.coverPath ? `<img src="${t.coverPath}" alt="">` : `<span>${t.emoji || '🎵'}</span>`}
+                  ${t.coverPath ? `<img src="${t.coverPath}" alt="">` : `<span>${t.emoji || '🎵'}</span>`}
                     <div class="pick-play">
             <svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg>
         </div>
                     </div>
-                    <div class="pick-title">\${t.title}</div>
-                    <div class="pick-artist">\${t.artist}</div>
+                    <div class="pick-title">${t.title}</div>
+                    <div class="pick-artist">${t.artist}</div>
                     </div>`).join('');
+          } else if (songs && songs.error) {
+            picksGrid.innerHTML = '<p style="color:var(--text3);font-size:.85rem">Không tải được nhạc: ' + songs.error + '. Kiểm tra PostgreSQL và file init.sql.</p>';
           } else {
-            picksGrid.innerHTML = '<p style="color:var(--text3);font-size:.85rem">No songs found.</p>';
+            picksGrid.innerHTML = '<p style="color:var(--text3);font-size:.85rem">Không có bài hát trong database. Hãy chạy init.sql trong pgAdmin.</p>';
           }
 
           // Load recently played
@@ -233,7 +235,7 @@
           } else {
             // Fallback
             const all = await App.API.get('/api/songs?limit=6');
-            if (all && all.length) {
+            if (all && Array.isArray(all) && all.length) {
               recentList.innerHTML = all.map((t, i) => renderTrackItem(t, i + 1)).join('');
             } else {
               recentList.innerHTML = '<p style="color:var(--text3);font-size:.85rem;padding:.5rem">Play a song to see your history here.</p>';

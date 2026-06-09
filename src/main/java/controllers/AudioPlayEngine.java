@@ -1,73 +1,159 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package controllers;
 
+import java.util.Random;
+import lib.DynamicArrayList;
 import lib.HistoryStack;
-import lib.IndexedDoublyLinkedList;
 import lib.IndexedDoublyLinkedList;
 import lib.Node;
 import models.Song;
-import models.Song;
+import models.SongDAO;
 
 public class AudioPlayEngine {
-    private Node currentTrackPointer;              // Con trỏ bài hát đang phát hiện tại
-    private IndexedDoublyLinkedList waitingList;   // Hàng chờ in-memory (DLL + HashMap) 
-    private HistoryStack playbackHistory;          // Ngăn xếp lưu lịch sử (Stack LIFO) 
-    private boolean isRepeatAllEnabled = false;    // Cờ thiết lập chế độ lặp 
+    private Node currentTrackPointer;
+    private IndexedDoublyLinkedList waitingList;
+    private HistoryStack playbackHistory;
+    private boolean isRepeatAllEnabled = false;
+    private boolean repeatOne = false;
+    private final SongDAO songDAO = new SongDAO();
 
     public AudioPlayEngine(IndexedDoublyLinkedList waitingList) {
         this.waitingList = waitingList;
-        this.currentTrackPointer = waitingList.getHead(); // Gắn điểm bắt đầu bằng Head của DLL 
+        this.currentTrackPointer = waitingList.getHead();
         this.playbackHistory = new HistoryStack();
     }
 
-    /**
-     * Thuật toán: Phát bài tiếp theo (Next Track Control)
-     * Kịch bản: Di chuyển con trỏ liên kết xuôi, lưu vết lịch sử vào Stack
-     */
-    public void nextTrack() {
-        if (currentTrackPointer == null) return;
+    public Song getCurrentSong() {
+        return currentTrackPointer != null ? currentTrackPointer.data : null;
+    }
 
-        // Đẩy bài hát hiện tại vào ngăn xếp lịch sử phát 
-        playbackHistory.push(currentTrackPointer.data);
+    public IndexedDoublyLinkedList getWaitingList() {
+        return waitingList;
+    }
 
-        if (currentTrackPointer.next != null) {
-            currentTrackPointer = currentTrackPointer.next; // Di chuyển sang nút tiếp theo trong O(1) 
-            System.out.println("Đang phát bài tiếp theo: " + currentTrackPointer.data.getTitle());
-        } else {
-            // Xử lý logic lặp toàn bộ hoặc kích hoạt mở rộng danh sách tự động từ database
-            if (isRepeatAllEnabled) {
-                currentTrackPointer = waitingList.getHead(); // Quay ngược về đầu playlist 
-                System.out.println("Vòng lặp kích hoạt! Quay về bài đầu tiên: " + currentTrackPointer.data.getTitle());
-            } else {
-                System.out.println("Đã hết danh sách chờ. Kích hoạt truy vấn tự động thêm 10 bài cùng thể loại...");
-                // Thực hiện phương thức Auto-Queue Expansion tại đây... 
-            }
+    public HistoryStack getPlaybackHistory() {
+        return playbackHistory;
+    }
+
+    public void playFromSong(Song song) {
+        if (song == null) return;
+        Node node = waitingList.getNodeById(song.getSongId());
+        if (node != null) {
+            currentTrackPointer = node;
         }
     }
 
-    /**
-     * Thuật toán: Quay lại bài trước (Previous Track Control)
-     * Kịch bản: Rút trích bài hát gần nhất từ Stack lịch sử thay vì đi ngược con trỏ DLL
-     * để đảm bảo chính xác trình tự nghe thực tế kể cả khi xáo trộn (Shuffle)
-     */
-    public void previousTrack() {
-        if (playbackHistory.isEmpty()) {
-            System.out.println("Không có lịch sử bài hát trước đó.");
-            return;
+    public Song nextTrack() {
+        if (currentTrackPointer == null) return null;
+
+        if (repeatOne) {
+            return currentTrackPointer.data;
         }
 
-        // Lấy bài hát từ đỉnh Stack 
+        playbackHistory.push(currentTrackPointer.data);
+
+        if (currentTrackPointer.next != null) {
+            currentTrackPointer = currentTrackPointer.next;
+            return currentTrackPointer.data;
+        }
+
+        if (isRepeatAllEnabled) {
+            currentTrackPointer = waitingList.getHead();
+            return currentTrackPointer != null ? currentTrackPointer.data : null;
+        }
+
+        autoAppendSongs();
+        if (currentTrackPointer.next != null) {
+            currentTrackPointer = currentTrackPointer.next;
+            return currentTrackPointer.data;
+        }
+
+        return null;
+    }
+
+    public Song previousTrack() {
+        if (playbackHistory.isEmpty()) {
+            return null;
+        }
+
         Song previousSong = playbackHistory.pop();
-        System.out.println("Trở lại bài hát trong lịch sử: " + previousSong.getTitle());
-        
-        // Cập nhật lại con trỏ thực tế trong danh sách chờ (nếu cần thiết)
-        // (Trong thực tế hệ thống, có thể thiết lập cấu trúc phát theo luồng lịch sử riêng)
+        Node node = waitingList.getNodeById(previousSong.getSongId());
+        if (node != null) {
+            currentTrackPointer = node;
+        }
+        return previousSong;
     }
 
     public void setRepeatAll(boolean status) {
         this.isRepeatAllEnabled = status;
+        if (status) {
+            this.repeatOne = false;
+        }
+    }
+
+    public void setRepeatOne(boolean status) {
+        this.repeatOne = status;
+        if (status) {
+            this.isRepeatAllEnabled = false;
+        }
+    }
+
+    public void shuffleUpcoming() {
+        if (currentTrackPointer == null || currentTrackPointer.next == null) {
+            return;
+        }
+
+        DynamicArrayList songs = new DynamicArrayList();
+        Node temp = currentTrackPointer.next;
+        while (temp != null) {
+            songs.add(temp.data);
+            temp = temp.next;
+        }
+
+        Random random = new Random();
+        for (int i = songs.size() - 1; i > 0; i--) {
+            int j = random.nextInt(i + 1);
+            Song tempSong = songs.get(i);
+            songs.set(i, songs.get(j));
+            songs.set(j, tempSong);
+        }
+
+        temp = currentTrackPointer.next;
+        int index = 0;
+        while (temp != null) {
+            temp.data = songs.get(index);
+            temp = temp.next;
+            index++;
+        }
+    }
+
+    public void autoAppendSongs() {
+        if (currentTrackPointer == null) return;
+
+        String genre = currentTrackPointer.data.getGenre();
+        try {
+            DynamicArrayList songs = songDAO.getSongsByGenre(genre, 10);
+            for (int i = 0; i < songs.size(); i++) {
+                Song song = songs.get(i);
+                if (!waitingList.contains(song.getSongId())) {
+                    waitingList.append(song);
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static IndexedDoublyLinkedList buildQuickPlayQueue(Song selected, SongDAO songDAO) throws Exception {
+        IndexedDoublyLinkedList list = new IndexedDoublyLinkedList();
+        list.append(selected);
+
+        DynamicArrayList similar = songDAO.getSongsByGenre(selected.getGenre(), 11);
+        for (int i = 0; i < similar.size() && list.toSongList().size() < 11; i++) {
+            Song song = similar.get(i);
+            if (!list.contains(song.getSongId())) {
+                list.append(song);
+            }
+        }
+        return list;
     }
 }

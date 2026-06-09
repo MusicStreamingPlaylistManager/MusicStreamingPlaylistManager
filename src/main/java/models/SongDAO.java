@@ -118,6 +118,35 @@ public class SongDAO {
         }
     }
 
+    public boolean updateSong(Song song) throws Exception {
+        String sql = "UPDATE Songs SET Title = ?, Artist = ?, Genre = ?, Duration = ?, "
+                   + "FilePath = ?, CoverPath = ? WHERE SongID = ?";
+
+        try (Connection conn = DBUtils.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setString(1, song.getTitle());
+            ps.setString(2, song.getArtist());
+            ps.setString(3, song.getGenre());
+            ps.setInt(4, song.getDuration());
+            ps.setString(5, song.getFilePath());
+            ps.setString(6, song.getCoverPath());
+            ps.setInt(7, song.getSongId());
+
+            return ps.executeUpdate() > 0;
+        }
+    }
+
+    public boolean deleteSong(int songId) throws Exception {
+        String sql = "DELETE FROM Songs WHERE SongID = ?";
+        try (Connection conn = DBUtils.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setInt(1, songId);
+            return ps.executeUpdate() > 0;
+        }
+    }
+
     private Song mapSong(ResultSet rs) throws Exception {
         return new Song(
             rs.getInt("SongID"),

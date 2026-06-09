@@ -5,6 +5,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.Statement;
 import lib.DynamicArrayList;
+import lib.DynamicPlaylistList;
 import lib.IndexedDoublyLinkedList;
 import utils.DBUtils;
 
@@ -60,9 +61,9 @@ public class PlaylistDAO {
         }
     }
 
-    public DynamicArrayList getPlaylistsByUserId(int userId) throws Exception {
+    public DynamicPlaylistList getPlaylistsByUserId(int userId) throws Exception {
         String sql = "SELECT * FROM Playlists WHERE UserID = ? ORDER BY CreatedAt DESC";
-        DynamicArrayList playlists = new DynamicArrayList();
+        DynamicPlaylistList playlists = new DynamicPlaylistList();
 
         try (Connection conn = DBUtils.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -71,12 +72,32 @@ public class PlaylistDAO {
 
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
-                    playlists.add(null); // DynamicArrayList hiện chỉ chứa Song, nên không phù hợp Playlist.
+                    playlists.add(mapPlaylist(rs));
                 }
             }
         }
 
         return playlists;
+    }
+
+    public int countSongsInPlaylist(int playlistId) throws Exception {
+        String sql = "SELECT COUNT(*) AS Total FROM Playlist_Songs WHERE PlaylistID = ?";
+        try (Connection conn = DBUtils.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setInt(1, playlistId);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() ? rs.getInt("Total") : 0;
+            }
+        }
+    }
+
+    public void ensureDefaultFavouritePlaylist(int userId) throws Exception {
+        if (getDefaultFavouritePlaylist(userId) != null) {
+            return;
+        }
+        createPlaylist(userId, "Liked Songs", "Favourite", true);
     }
 
     public boolean deletePlaylist(int playlistId, int userId) throws Exception {
@@ -191,6 +212,14 @@ public class PlaylistDAO {
         return updateOrderIndexes(playlistId, newOrder);
     }
 
+    public boolean playlistSongExistsPublic(int playlistId, int songId) throws Exception {
+        return playlistSongExists(playlistId, songId);
+    }
+
+    public boolean updateOrderIndexesPublic(int playlistId, int[] songIds) throws Exception {
+        return updateOrderIndexes(playlistId, songIds);
+    }
+
     private boolean updateOrderIndexes(int playlistId, int[] songIds) throws Exception {
         String sql = "UPDATE Playlist_Songs SET OrderIndex = ? "
                    + "WHERE PlaylistID = ? AND SongID = ?";
@@ -259,7 +288,7 @@ public class PlaylistDAO {
     
     // Lấy playlist favourite mặc định của user
     public Playlist getDefaultFavouritePlaylist(int userId) throws Exception {
-        String sql = "SELECT * FROM Playlists WHERE UserID = ? AND Type = 'fav' AND IsDefault = TRUE";
+        String sql = "SELECT * FROM Playlists WHERE UserID = ? AND Type = 'Favourite' AND IsDefault = TRUE";
         try (Connection conn = DBUtils.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
 
@@ -274,9 +303,30 @@ public class PlaylistDAO {
     //gọi khi user bấm "Like" một bài hát
     public boolean likeSong(int userId, int songId) throws Exception {
         Playlist defaultFav = getDefaultFavouritePlaylist(userId);
-        if (defaultFav == null) return false; // chưa có playlist mặc định
+        if (defaultFav == null) return false;
 
         return addSongToPlaylist(defaultFav.getPlaylistId(), songId);
+    }
+
+    public int saveWaitingListAsFavourite(int userId, String name, IndexedDoublyLinkedList waitingList)
+            throws Exception {
+        if (waitingList == null || waitingList.getHead() == null) {
+            return -1;
+        }
+        if (playlistExists(userId, name, "Favourite")) {
+            return -1;
+        }
+
+        int playlistId = createPlaylist(userId, name, "Favourite", false);
+        if (playlistId <= 0) {
+            return -1;
+        }
+
+        DynamicArrayList songs = waitingList.toSongList();
+        for (int i = 0; i < songs.size(); i++) {
+            addSongToPlaylist(playlistId, songs.get(i).getSongId());
+        }
+        return playlistId;
     }
 
     private Playlist mapPlaylist(ResultSet rs) throws Exception {

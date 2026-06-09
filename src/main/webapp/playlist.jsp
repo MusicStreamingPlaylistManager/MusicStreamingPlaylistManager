@@ -1,4 +1,4 @@
-<%@ page contentType="text/html;charset=UTF-8" language="java" %>
+<%@ page contentType="text/html;charset=UTF-8" language="java" isELIgnored="true" %>
 <%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c" %>
 <%
   if (session.getAttribute("user") == null) {
@@ -172,14 +172,14 @@ function renderPlaylists() {
     const card = document.createElement('div');
     card.className = 'pl-card';
     card.innerHTML = `
-      <div class="pl-thumb" style="background:\${pl.color || '#1a0533'}">
-        \${pl.coverPath ? `<img src="\${pl.coverPath}" alt="">` : (pl.emoji || '🎵')}
+      <div class="pl-thumb" style="background:${pl.color || '#1a0533'}">
+        ${pl.coverPath ? `<img src="${pl.coverPath}" alt="">` : (pl.emoji || '🎵')}
       </div>
       <div>
-        <div class="pl-name">\${pl.name}</div>
-        <div class="pl-count">\${pl.songCount} song\${pl.songCount !== 1 ? 's' : ''}</div>
+        <div class="pl-name">${pl.name}</div>
+        <div class="pl-count">${pl.songCount} song${pl.songCount !== 1 ? 's' : ''}</div>
       </div>
-      <button class="pl-delete" onclick="deletePlaylist(event, \${pl.playlistId})" title="Delete">
+      <button class="pl-delete" onclick="deletePlaylist(event, ${pl.playlistId})" title="Delete">
         <svg><use href="#ic-trash"/></svg>
       </button>`;
     

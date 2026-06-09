@@ -7,6 +7,7 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
+import models.PlaylistDAO;
 import models.User;
 import models.UserDAO;
 
@@ -65,7 +66,9 @@ public class AuthServlet extends HttpServlet {
                 int newUserId = userDAO.register(username, password, "User");
 
                 if (newUserId > 0) {
-                    // Tự động đăng nhập luôn sau khi đăng ký thành công
+                    PlaylistDAO playlistDAO = new PlaylistDAO();
+                    playlistDAO.ensureDefaultFavouritePlaylist(newUserId);
+
                     User newUser = userDAO.getById(newUserId);
                     session.setAttribute("user", newUser);
                     session.setAttribute("userId", newUser.getUserId());

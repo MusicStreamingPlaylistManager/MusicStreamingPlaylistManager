@@ -53,9 +53,10 @@ CREATE TABLE Playlist_Songs (
 -- 3. CHÈN DỮ LIỆU MẪU (DUMMY DATA)
 
 INSERT INTO Users (Username, Password, Role) VALUES
-('admin_phuc', 'hashed_password_123', 'Admin'),
-('user_an', 'hashed_password_456', 'User'),
-('user_khoi', 'hashed_password_789', 'User');
+('admin_phuc', '240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9', 'Admin'),
+('user_an', '8d969eef6ecad3c29a3a629280e686cf0c3f5d5d5a86aff3ca12020c923adc6ca6', 'User'),
+('user_khoi', '8d969eef6ecad3c29a3a629280e686cf0c3f5d5d5a86aff3ca12020c923adc6ca6', 'User');
+-- Passwords above are SHA-256 hashes: admin123 / 123456
 
 -- Chèn Playlists mẫu
 INSERT INTO Playlists (UserID, Name, Type, IsDefault) VALUES
