@@ -34,10 +34,10 @@
       <input type="hidden" name="action" value="login">
 
       <div class="field-group">
-        <label class="field-label" for="email">Email</label>
-        <input class="auth-input" type="email" id="email" name="email"
-               placeholder="name@email.com" required autocomplete="email">
-        <div class="error-msg" id="emailErr">Please enter a valid email.</div>
+        <label class="field-label" for="username">Username</label>
+        <input class="auth-input" type="text" id="username" name="username"
+               placeholder="Enter your username" required autocomplete="username">
+        <div class="error-msg" id="userErr">Please enter your username.</div>
       </div>
 
       <div class="field-group">
@@ -58,18 +58,18 @@
 <script>
 document.getElementById('loginForm').addEventListener('submit', function(e) {
   let ok = true;
-  const email = document.getElementById('email');
-  const pass  = document.getElementById('password');
-  const emailErr = document.getElementById('emailErr');
-  const passErr  = document.getElementById('passErr');
+  const u = document.getElementById('username').value.trim();
+  const pass  = document.getElementById('password').value;
+  const userErr = document.getElementById('userErr');
+  const passErr = document.getElementById('passErr');
 
-  emailErr.classList.remove('show');
+  userErr.classList.remove('show');
   passErr.classList.remove('show');
 
-  if (!email.value.includes('@')) {
-    emailErr.classList.add('show'); ok = false;
+  if (u.length < 1) {
+    userErr.classList.add('show'); ok = false;
   }
-  if (pass.value.length < 1) {
+  if (pass.length < 1) {
     passErr.classList.add('show'); ok = false;
   }
   if (!ok) e.preventDefault();

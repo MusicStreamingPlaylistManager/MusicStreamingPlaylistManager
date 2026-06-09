@@ -39,13 +39,6 @@
       </div>
 
       <div class="field-group">
-        <label class="field-label" for="email">Email</label>
-        <input class="auth-input" type="email" id="email" name="email"
-               placeholder="name@email.com" required autocomplete="email">
-        <div class="error-msg" id="eErr">Please enter a valid email.</div>
-      </div>
-
-      <div class="field-group">
         <label class="field-label" for="password">Password</label>
         <input class="auth-input" type="password" id="password" name="password"
                placeholder="At least 8 characters" required minlength="8" autocomplete="new-password">
@@ -63,12 +56,10 @@
 document.getElementById('regForm').addEventListener('submit', function(e) {
   let ok = true;
   const u = document.getElementById('username').value.trim();
-  const em = document.getElementById('email').value.trim();
   const p = document.getElementById('password').value;
   document.querySelectorAll('.error-msg').forEach(el => el.classList.remove('show'));
 
   if (u.length < 3)          { document.getElementById('uErr').classList.add('show'); ok = false; }
-  if (!em.includes('@'))     { document.getElementById('eErr').classList.add('show'); ok = false; }
   if (p.length < 8)          { document.getElementById('pErr').classList.add('show'); ok = false; }
   if (!ok) e.preventDefault();
 });

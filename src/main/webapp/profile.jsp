@@ -1,9 +1,9 @@
 <%@ page contentType="text/html;charset=UTF-8" language="java" %>
 <%
-//  if (session.getAttribute("user") == null) {
-//    response.sendRedirect(request.getContextPath() + "/login.jsp");
-//    return;
-//  }
+  if (session.getAttribute("user") == null) {
+    response.sendRedirect(request.getContextPath() + "/login.jsp");
+    return;
+  }
   request.setAttribute("currentPage", "");
   String username = (String) session.getAttribute("username");
   if (username == null) username = "User";

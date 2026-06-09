@@ -1,9 +1,9 @@
 <%@ page contentType="text/html;charset=UTF-8" language="java" %>
 <%
-//  if (session.getAttribute("user") == null) {
-//    response.sendRedirect(request.getContextPath() + "/login.jsp");
-//    return;
-//  }
+  if (session.getAttribute("user") == null) {
+    response.sendRedirect(request.getContextPath() + "/login.jsp");
+    return;
+  }
   request.setAttribute("currentPage", "playlist");
   // ?id=123 for custom playlist, ?type=favourite for favourite list
   String playlistId = request.getParameter("id");
