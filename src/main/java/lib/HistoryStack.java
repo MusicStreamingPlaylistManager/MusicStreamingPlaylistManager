@@ -51,4 +51,14 @@ public class HistoryStack {
     public boolean isEmpty() {
         return top == null;
     }
+
+    public DynamicArrayList toList() {
+        DynamicArrayList songs = new DynamicArrayList();
+        Node current = top;
+        while (current != null) {
+            songs.add(current.data);
+            current = current.next;
+        }
+        return songs;
+    }
 }

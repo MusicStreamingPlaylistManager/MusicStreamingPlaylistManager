@@ -1,9 +1,9 @@
-<%@ page contentType="text/html;charset=UTF-8" language="java" %>
+<%@ page contentType="text/html;charset=UTF-8" language="java" isELIgnored="true" %>
 <%
-//  if (session.getAttribute("user") == null) {
-//    response.sendRedirect(request.getContextPath() + "/login.jsp");
-//    return;
-//  }
+  if (session.getAttribute("user") == null) {
+    response.sendRedirect(request.getContextPath() + "/login.jsp");
+    return;
+  }
   request.setAttribute("currentPage", "search");
 %>
 <!DOCTYPE html>
@@ -57,29 +57,14 @@
       <div id="browseSection">
         <p style="font-size:1rem; font-weight:600; margin-bottom:1rem; color:var(--text2)">Browse all</p>
         <div class="genre-grid">
-          <div class="genre-card" style="background:#2d1b69;color:#c4b5fd" onclick="filterGenre('V-Pop')">
-            <span class="g-icon">🎤</span><span class="g-name">V-Pop</span>
+          <div class="genre-card" style="background:#001a1a;color:#67e8f9" onclick="filterGenre('piano')">
+            <span class="g-icon">🎹</span><span class="g-name">Piano</span>
           </div>
-          <div class="genre-card" style="background:#1a3a1a;color:#86efac" onclick="filterGenre('Hiphop')">
-            <span class="g-icon">✨</span><span class="g-name">Hiphop</span>
-          </div>
-          <div class="genre-card" style="background:#3a1a00;color:#fcd34d" onclick="filterGenre('Ballad')">
-            <span class="g-icon">🎵</span><span class="g-name">Ballad</span>
-          </div>
-          <div class="genre-card" style="background:#001a1a;color:#67e8f9" onclick="filterGenre('Lo-fi')">
-            <span class="g-icon">🎹</span><span class="g-name">Lo-fi</span>
-          </div>
-          <div class="genre-card" style="background:#2a002a;color:#f0abfc" onclick="filterGenre('R&B')">
-            <span class="g-icon">🎷</span><span class="g-name">R&amp;B</span>
-          </div>
-          <div class="genre-card" style="background:#1a001a;color:#fca5a5" onclick="filterGenre('Pop')">
+          <div class="genre-card" style="background:#1a001a;color:#fca5a5" onclick="filterGenre('pop')">
             <span class="g-icon">🎶</span><span class="g-name">Pop</span>
           </div>
-          <div class="genre-card" style="background:#0a1a00;color:#bef264" onclick="filterGenre('Indie')">
-            <span class="g-icon">🌱</span><span class="g-name">Indie</span>
-          </div>
-          <div class="genre-card" style="background:#00001a;color:#93c5fd" onclick="filterGenre('EDM')">
-            <span class="g-icon">🔊</span><span class="g-name">EDM</span>
+          <div class="genre-card" style="background:#2a002a;color:#f0abfc" onclick="filterGenre('rnb')">
+            <span class="g-icon">🎷</span><span class="g-name">R&amp;B</span>
           </div>
         </div>
       </div>

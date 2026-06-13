@@ -59,9 +59,10 @@
 
 <div class="toast" id="sw-toast"></div>
 
-<script src="<%= request.getContextPath() %>/assets/js/app.js"></script>
+<script>window.APP_CONTEXT = '<%= request.getContextPath() %>';</script>
+<script src="<%= request.getContextPath() %>/assets/js/app.js?v=20260611"></script>
 <script>
-// Global search (calls SearchServlet)
+// Global search (calls SongServlet API)
 async function handleGlobalSearch(val) {
   const overlay = document.getElementById('search-overlay');
   const list = document.getElementById('search-results-list');
@@ -79,34 +80,4 @@ document.addEventListener('click', e => {
     document.getElementById('globalSearch').value = '';
   }
 });
-
-// Shared track item renderer
-function renderTrackItem(t, num) {
-  const isFav = App.getState().favorites.has(t.songId);
-  const cover = t.coverPath
-    ? `<img src="\${t.coverPath}" alt="">`
-    : `<span style="font-size:1.3rem">\${t.emoji || '🎵'}</span>`;
-  return `
-    <div class="track-item" ondblclick="App.playTrack(\${JSON.stringify(t).replace(/\"/g,'&quot;')})">
-      <span class="track-num">\${num}</span>
-      <span class="track-play-icon"><svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5,3 19,12 5,21"/></svg></span>
-      <div class="track-thumb">\${cover}</div>
-      <div class="track-info">
-        <div class="t-name">\${t.title}</div>
-        <div class="t-artist">\${t.artist}</div>
-      </div>
-      <div class="track-actions">
-        <button class="heart-btn \${isFav ? 'liked' : ''}"
-                onclick="event.stopPropagation(); App.toggleFavorite(\${t.songId}, this)"
-                title="Favourite">
-          <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor"
-               fill="\${isFav ? 'currentColor' : 'none'}"
-               stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/>
-          </svg>
-        </button>
-        <span class="track-dur">\${t.durationStr || ''}</span>
-      </div>
-    </div>`;
-}
 </script>

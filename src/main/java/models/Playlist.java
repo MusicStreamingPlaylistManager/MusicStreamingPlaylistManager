@@ -6,7 +6,7 @@ public class Playlist {
     private int playlistId;
     private int userId;
     private String name;
-    private String type; //fav or waiting
+    private String type; // Favourite or Waiting
     private Timestamp createdAt;
     private boolean isDefault; 
 

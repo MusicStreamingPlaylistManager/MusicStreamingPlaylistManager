@@ -1,9 +1,9 @@
-<%@ page contentType="text/html;charset=UTF-8" language="java" %>
+<%@ page contentType="text/html;charset=UTF-8" language="java" isELIgnored="true" %>
 <%
-//  if (session.getAttribute("user") == null) {
-//    response.sendRedirect(request.getContextPath() + "/login.jsp");
-//    return;
-//  }
+  if (session.getAttribute("user") == null) {
+    response.sendRedirect(request.getContextPath() + "/login.jsp");
+    return;
+  }
   request.setAttribute("currentPage", "nowplaying");
 %>
 <!DOCTYPE html>
@@ -215,7 +215,11 @@
 
       <!-- Right: Wait List -->
       <div class="wait-list-panel">
-        <div class="wl-title">Wait List</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;gap:.75rem">
+          <div class="wl-title" style="margin:0">Wait List</div>
+          <button class="btn-confirm" style="font-size:.78rem;padding:.45rem .8rem;white-space:nowrap"
+                  onclick="saveWaitingList()">Save as Playlist</button>
+        </div>
         <div id="waitListEl">
           <div class="wl-empty">No songs queued. Play a song to start.</div>
         </div>
@@ -246,18 +250,19 @@ window.renderWaitList = function(list) {
   el.innerHTML = list.map((t, i) => {
     const isCurrent = cur && cur.songId === t.songId;
     const cover = t.coverPath
-      ? `<img src="\${t.coverPath}" alt="">`
-      : `<span>\${t.emoji || '🎵'}</span>`;
+      ? `<img src="${t.coverPath}" alt="">`
+      : `<span>${t.emoji || '🎵'}</span>`;
+    const trackJson = JSON.stringify(t).replace(/"/g, '&quot;');
     return `
-      <div class="wl-track \${isCurrent ? 'current' : ''}"
-           ondblclick="App.playTrack(\${JSON.stringify(t).replace(/\"/g,'&quot;')})">
-        <span class="wl-num">\${isCurrent ? '▶' : i + 1}</span>
-        <div class="wl-thumb">\${cover}</div>
+      <div class="wl-track ${isCurrent ? 'current' : ''}"
+           ondblclick="App.playTrack(${trackJson})">
+        <span class="wl-num">${isCurrent ? '▶' : i + 1}</span>
+        <div class="wl-thumb">${cover}</div>
         <div>
-          <div class="wl-name">\${t.title}</div>
-          <div class="wl-artist">\${t.artist}</div>
+          <div class="wl-name">${t.title}</div>
+          <div class="wl-artist">${t.artist}</div>
         </div>
-        <span class="wl-dur">\${t.durationStr || ''}</span>
+        <span class="wl-dur">${t.durationStr || ''}</span>
       </div>`;
   }).join('');
 };
@@ -265,8 +270,17 @@ window.renderWaitList = function(list) {
 // Load wait list on open
 (async function() {
   const res = await App.API.get('/api/player/waitlist');
-  if (res && res.songs) renderWaitList(res.songs);
+  if (res && res.waitList) renderWaitList(res.waitList);
 })();
+
+async function saveWaitingList() {
+  const name = prompt('Enter playlist name to save this waiting list:');
+  if (!name || !name.trim()) return;
+  const id = await App.saveWaitingAsPlaylist(name.trim());
+  if (id) {
+    window.location = '<%= request.getContextPath() %>/playlist-detail.jsp?id=' + id;
+  }
+}
 
 // Sync all np-ctrl active states
 function syncNpControls() {

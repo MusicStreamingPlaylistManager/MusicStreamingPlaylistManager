@@ -38,4 +38,11 @@ public class DynamicArrayList {
     public int size() {
         return this.currentSize;
     }
+
+    public void set(int index, Song song) {
+        if (index < 0 || index >= currentSize) {
+            throw new IndexOutOfBoundsException("Vượt quá phạm vi mảng.");
+        }
+        array[index] = song;
+    }
 }
