@@ -24,7 +24,9 @@ import utils.JsonHelper;
     "/api/player/loop",
     "/api/player/history",
     "/api/player/waitlist",
-    "/api/player/save-waiting"
+    "/api/player/save-waiting",
+    "/api/player/remove",
+    "/api/player/reorder"
 })
 public class PlayerServlet extends HttpServlet {
 
@@ -114,6 +116,10 @@ public class PlayerServlet extends HttpServlet {
                 out.print(root.toString());
             } else if ("/api/player/save-waiting".equals(path)) {
                 handleSaveWaiting(request, session, out);
+            } else if ("/api/player/remove".equals(path)) {
+                handleRemove(request, session, out);
+            } else if ("/api/player/reorder".equals(path)) {
+                handleReorder(request, session, out);
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -223,5 +229,32 @@ public class PlayerServlet extends HttpServlet {
     private boolean isLoggedIn(HttpServletRequest request) {
         HttpSession session = request.getSession(false);
         return session != null && session.getAttribute("user") != null;
+    }
+
+    private void handleRemove(HttpServletRequest request, HttpSession session, PrintWriter out)
+            throws Exception {
+        AudioPlayEngine engine = getOrCreateEngine(session);
+        int songId = Integer.parseInt(request.getParameter("songId"));
+
+        boolean removed = engine.getWaitingList().removeById(songId);
+
+        JsonObject root = new JsonObject();
+        root.addProperty("success", removed);
+        root.add("waitList", JsonHelper.waitListToJson(engine.getWaitingList()));
+        out.print(root.toString());
+    }
+
+    private void handleReorder(HttpServletRequest request, HttpSession session, PrintWriter out)
+            throws Exception {
+        AudioPlayEngine engine = getOrCreateEngine(session);
+        int songIdToMove = Integer.parseInt(request.getParameter("songIdToMove"));
+        int targetSongId = Integer.parseInt(request.getParameter("targetSongId"));
+
+        boolean moved = engine.getWaitingList().moveSongAfter(songIdToMove, targetSongId);
+
+        JsonObject root = new JsonObject();
+        root.addProperty("success", moved);
+        root.add("waitList", JsonHelper.waitListToJson(engine.getWaitingList()));
+        out.print(root.toString());
     }
 }
