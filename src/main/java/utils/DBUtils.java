@@ -17,7 +17,7 @@ public class DBUtils {
     // Cấu hình thông tin kết nối PostgreSQL Local
     private static final String HOST = "localhost";
     private static final String PORT = "5432"; // Cổng mặc định khi cài PostgreSQL
-    private static final String DBNAME = "music_streaming_db"; // ✅ Đã cập nhật khớp với file init.sql
+    private static final String DBNAME = "music_streaming_db"; // Đã cập nhật khớp với file init.sql
     private static final String USER = "postgres"; // Username mặc định của PostgreSQL
     private static final String PASSWORD = "csd"; // 
 

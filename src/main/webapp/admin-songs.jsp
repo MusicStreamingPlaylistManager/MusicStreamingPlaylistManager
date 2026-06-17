@@ -51,7 +51,7 @@
           <label>Artist</label>
           <input id="artist" type="text" placeholder="Artist name">
           <label>Genre</label>
-          <input id="genre" type="text" placeholder="piano / pop / rnb">
+          <input id="genre" type="text" placeholder="ballad / barbie playlist / piano / pop">
           <label>Duration (seconds)</label>
           <input id="duration" type="number" value="200">
           <label>File Path</label>

@@ -57,14 +57,17 @@
       <div id="browseSection">
         <p style="font-size:1rem; font-weight:600; margin-bottom:1rem; color:var(--text2)">Browse all</p>
         <div class="genre-grid">
+          <div class="genre-card" style="background:#2a1015;color:#fda4af" onclick="filterGenre('ballad')">
+            <span class="g-icon">🎵</span><span class="g-name">Ballad</span>
+          </div>
+          <div class="genre-card" style="background:#2e1025;color:#f472b6" onclick="filterGenre('barbie playlist')">
+            <span class="g-icon">👸</span><span class="g-name">Barbie</span>
+          </div>
           <div class="genre-card" style="background:#001a1a;color:#67e8f9" onclick="filterGenre('piano')">
             <span class="g-icon">🎹</span><span class="g-name">Piano</span>
           </div>
           <div class="genre-card" style="background:#1a001a;color:#fca5a5" onclick="filterGenre('pop')">
             <span class="g-icon">🎶</span><span class="g-name">Pop</span>
-          </div>
-          <div class="genre-card" style="background:#2a002a;color:#f0abfc" onclick="filterGenre('rnb')">
-            <span class="g-icon">🎷</span><span class="g-name">R&amp;B</span>
           </div>
         </div>
       </div>
@@ -107,7 +110,10 @@ window.handleGlobalSearch = async function(val) {
   list.innerHTML = res.songs.map((t, i) => renderTrackItem(t, i + 1)).join('');
 };
 
-async function filterGenre(genre) {
+async function filterGenre(genre, pushState = true) {
+  if (pushState) {
+    history.pushState({ genre: genre }, '', '?genre=' + encodeURIComponent(genre));
+  }
   document.getElementById('browseSection').style.display = 'none';
   const section = document.getElementById('searchResultsSection');
   const list = document.getElementById('searchResultsList');
@@ -115,7 +121,6 @@ async function filterGenre(genre) {
   section.classList.add('show');
   title.textContent = `Genre: ${genre}`;
   list.innerHTML = '<div style="color:var(--text3);font-size:.85rem;padding:.5rem">Loading...</div>';
-
   const res = await App.API.get('/api/songs/search?genre=' + encodeURIComponent(genre));
   if (!res || !res.songs || !res.songs.length) {
     list.innerHTML = '<div class="no-results">No songs in this genre yet.</div>';
@@ -124,12 +129,32 @@ async function filterGenre(genre) {
   title.textContent = `Genre: ${genre} (${res.songs.length})`;
   list.innerHTML = res.songs.map((t, i) => renderTrackItem(t, i + 1)).join('');
 }
-
-function clearSearch() {
+function clearSearch(pushState = true) {
+  if (pushState) {
+    history.pushState({ genre: null }, '', window.location.pathname);
+  }
   document.getElementById('browseSection').style.display = 'block';
   document.getElementById('searchResultsSection').classList.remove('show');
   document.getElementById('globalSearch').value = '';
 }
+//back lại trang search
+window.addEventListener('popstate', (event) => {
+  const params = new URLSearchParams(window.location.search);
+  const genre = params.get('genre');
+  if (genre) {
+    filterGenre(genre, false);
+  } else {
+    clearSearch(false);
+  }
+});
+// Kiểm tra nếu ban đầu URL có tham số genre thì tự động lọc luôn
+document.addEventListener('DOMContentLoaded', () => {
+  const params = new URLSearchParams(window.location.search);
+  const genre = params.get('genre');
+  if (genre) {
+    filterGenre(genre, false);
+  }
+});
 </script>
 
 </body>
