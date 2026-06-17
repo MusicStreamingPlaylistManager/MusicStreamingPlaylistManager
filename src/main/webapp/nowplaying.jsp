@@ -17,6 +17,22 @@
   <link rel="stylesheet" href="<%= request.getContextPath() %>/assets/css/style.css">
   <style>
     /* ---- NOW PLAYING PAGE ---- */
+    /* Drag and drop */
+.wl-track { cursor: grab; }
+.wl-track.dragging { opacity: 0.4; cursor: grabbing; }
+.wl-track.drag-over { border-top: 2px solid var(--accent); }
+
+/* Nút xóa */
+.wl-delete {
+  background: none; border: none;
+  color: var(--text3); cursor: pointer;
+  padding: 4px; border-radius: 4px;
+  display: flex; align-items: center;
+  opacity: 0; transition: opacity var(--transition);
+}
+.wl-track:hover .wl-delete { opacity: 1; }
+.wl-delete:hover { color: var(--red); }
+.wl-delete svg { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-width: 2; }
     .np-page {
       display: grid;
       grid-template-columns: 1fr 340px;
@@ -255,6 +271,8 @@ window.renderWaitList = function(list) {
     const trackJson = JSON.stringify(t).replace(/"/g, '&quot;');
     return `
       <div class="wl-track ${isCurrent ? 'current' : ''}"
+           draggable="true"
+           data-song-id="${t.songId}"
            ondblclick="App.playTrack(${trackJson})">
         <span class="wl-num">${isCurrent ? '▶' : i + 1}</span>
         <div class="wl-thumb">${cover}</div>
@@ -263,8 +281,14 @@ window.renderWaitList = function(list) {
           <div class="wl-artist">${t.artist}</div>
         </div>
         <span class="wl-dur">${t.durationStr || ''}</span>
+        <button class="wl-delete" title="Remove"
+                onclick="event.stopPropagation(); removeFromWaitList(${t.songId})">
+          <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
       </div>`;
   }).join('');
+
+  initDragAndDrop();
 };
 
 // Load wait list on open
@@ -296,6 +320,50 @@ function syncNpControls() {
   }
 }
 setInterval(syncNpControls, 300);
+
+// Xóa bài khỏi WaitList
+async function removeFromWaitList(songId) {
+  const res = await App.API.postForm('/api/player/remove', { songId });
+  if (res && res.waitList) renderWaitList(res.waitList);
+}
+
+// Kéo thả trong WaitList
+function initDragAndDrop() {
+  const tracks = document.querySelectorAll('.wl-track[draggable]');
+  let draggedId = null;
+
+  tracks.forEach(track => {
+    track.addEventListener('dragstart', () => {
+      draggedId = track.dataset.songId;
+      track.classList.add('dragging');
+    });
+
+    track.addEventListener('dragend', () => {
+      track.classList.remove('dragging');
+      document.querySelectorAll('.wl-track').forEach(t => t.classList.remove('drag-over'));
+    });
+
+    track.addEventListener('dragover', e => {
+      e.preventDefault();
+      document.querySelectorAll('.wl-track').forEach(t => t.classList.remove('drag-over'));
+      if (track.dataset.songId !== draggedId) {
+        track.classList.add('drag-over');
+      }
+    });
+
+    track.addEventListener('drop', async e => {
+      e.preventDefault();
+      const targetId = track.dataset.songId;
+      if (!draggedId || draggedId === targetId) return;
+
+      const res = await App.API.postForm('/api/player/reorder', {
+        songIdToMove: draggedId,
+        targetSongId: targetId
+      });
+      if (res && res.waitList) renderWaitList(res.waitList);
+    });
+  });
+}
 </script>
 </body>
 </html>
