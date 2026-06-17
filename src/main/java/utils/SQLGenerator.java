@@ -12,7 +12,7 @@ public class SQLGenerator {
         File songsDir = new File(songsDirPath);
 
         if (!songsDir.exists() || !songsDir.isDirectory()) {
-            System.out.println("❌ Không tìm thấy thư mục: " + songsDir.getAbsolutePath());
+            System.out.println("Không tìm thấy thư mục: " + songsDir.getAbsolutePath());
             System.out.println("Hãy chắc chắn bạn đã kéo thư mục Songs vào web/assets/");
             return;
         }
@@ -32,7 +32,7 @@ public class SQLGenerator {
 
         if (genreFolders != null) {
             for (File genreFolder : genreFolders) {
-                String genre = genreFolder.getName(); // Lấy tên thư mục làm Thể loại (Piano, Pop, RnB)
+                String genre = genreFolder.getName(); // Lấy tên thư mục làm Thể loại 
                 
                 // Đã sửa lại cú pháp lọc đuôi .mp3 cho tương thích Java 7
                 File[] songFiles = genreFolder.listFiles(new FilenameFilter() {
