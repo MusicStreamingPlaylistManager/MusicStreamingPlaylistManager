@@ -50,7 +50,6 @@
 
 <%@ include file="includes/layout-top.jspf" %>
 
-    <div class="page-content">
       <h1 style="font-family:var(--font-display); font-size:1.5rem; font-weight:800; margin-bottom:1.5rem">Search</h1>
 
       <!-- Genre browse -->
@@ -82,13 +81,14 @@
           <div class="no-results">No results found.</div>
         </div>
       </div>
-    </div>
 
 <%@ include file="includes/layout-bottom.jspf" %>
 
 <script>
 // Override global search to show inline results on this page
-const _origSearch = window.handleGlobalSearch;
+if (!window.__defaultGlobalSearch) {
+  window.__defaultGlobalSearch = window.handleGlobalSearch;
+}
 window.handleGlobalSearch = async function(val) {
   if (!val.trim()) { clearSearch(); return; }
   // Hide global overlay
@@ -140,24 +140,7 @@ function clearSearch(pushState = true) {
   document.getElementById('globalSearch').value = '';
 }
 
-// Handle browser Back/Forward navigation
-window.addEventListener('popstate', (event) => {
-  const params = new URLSearchParams(window.location.search);
-  const genre = params.get('genre');
-  if (genre) {
-    filterGenre(genre, false);
-  } else {
-    clearSearch(false);
-  }
-});
-// Kiểm tra nếu ban đầu URL có tham số genre thì tự động lọc luôn
-document.addEventListener('DOMContentLoaded', () => {
-  const params = new URLSearchParams(window.location.search);
-  const genre = params.get('genre');
-  if (genre) {
-    filterGenre(genre, false);
-  }
-});
+// Genre filter state is handled by App.Router (popstate + initial URL)
 </script>
 
 </body>

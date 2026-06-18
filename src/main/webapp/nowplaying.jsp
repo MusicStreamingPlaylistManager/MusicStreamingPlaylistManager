@@ -253,7 +253,6 @@ function handleSeek(e, bar) {
 }
 
 // Sync .p-play buttons on this page to match np-play
-const origToggle = App.togglePlay.bind(App);
 
 // Render wait list
 window.renderWaitList = function(list) {
@@ -319,7 +318,8 @@ function syncNpControls() {
       : `<svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" fill="currentColor" stroke-width="2"><polygon points="5,3 19,12 5,21"/></svg>`;
   }
 }
-setInterval(syncNpControls, 300);
+if (window.__npSyncInterval) clearInterval(window.__npSyncInterval);
+window.__npSyncInterval = setInterval(syncNpControls, 300);
 
 // Xóa bài khỏi WaitList
 async function removeFromWaitList(songId) {

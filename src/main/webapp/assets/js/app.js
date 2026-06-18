@@ -593,14 +593,201 @@ const App = (() => {
     });
   }
 
+  // --- SPA Router (AJAX + History API) ---
+  const SPA_PAGES = {
+    'home.jsp': 'home',
+    'search.jsp': 'search',
+    'playlist.jsp': 'playlist',
+    'playlist-detail.jsp': 'playlist-detail',
+    'nowplaying.jsp': 'nowplaying',
+    'profile.jsp': 'profile',
+    'admin-songs.jsp': 'admin',
+  };
+
+  const Router = {
+    currentPage: null,
+    navigating: false,
+
+    init() {
+      this.currentPage = this.resolvePage(window.location.pathname);
+      history.replaceState({ spa: true, url: window.location.href }, '', window.location.href);
+      this.updateNav(this.currentPage);
+      document.addEventListener('click', e => this.onClick(e));
+      window.addEventListener('popstate', e => this.onPopState(e));
+      this.runSearchUrlState();
+    },
+
+    resolvePage(pathname) {
+      const file = pathname.substring(pathname.lastIndexOf('/') + 1);
+      return SPA_PAGES[file] || null;
+    },
+
+    isSpaUrl(url) {
+      try {
+        const u = new URL(url, APP_BASE + '/');
+        if (u.origin !== window.location.origin) return false;
+        const ctx = resolveContextPath();
+        if (ctx && !u.pathname.startsWith(ctx + '/')) return false;
+        return !!this.resolvePage(u.pathname);
+      } catch (e) {
+        return false;
+      }
+    },
+
+    normalizeUrl(url) {
+      return new URL(url, APP_BASE + '/').href;
+    },
+
+    onClick(e) {
+      const link = e.target.closest('a[href]');
+      if (!link || link.target === '_blank' || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      const href = link.getAttribute('href');
+      if (!href || href.startsWith('#') || href.includes('AuthServlet')) return;
+      const full = this.normalizeUrl(link.href);
+      if (!this.isSpaUrl(full)) return;
+      e.preventDefault();
+      this.navigate(full);
+    },
+
+    onPopState(e) {
+      const targetPage = this.resolvePage(window.location.pathname);
+      if (targetPage === this.currentPage && targetPage === 'search') {
+        this.runSearchUrlState();
+        return;
+      }
+      this.navigate(window.location.href, { push: false });
+    },
+
+    updateNav(pageKey) {
+      document.querySelectorAll('#sidebar .nav-item[data-page]').forEach(el => {
+        el.classList.toggle('active', el.dataset.page === pageKey);
+      });
+    },
+
+    cleanupPage() {
+      if (window.__npSyncInterval) {
+        clearInterval(window.__npSyncInterval);
+        window.__npSyncInterval = null;
+      }
+      if (this.currentPage === 'search' && window.__defaultGlobalSearch) {
+        window.handleGlobalSearch = window.__defaultGlobalSearch;
+      }
+    },
+
+    applyPageStyles(doc) {
+      let holder = document.getElementById('spa-page-styles');
+      if (!holder) {
+        holder = document.createElement('div');
+        holder.id = 'spa-page-styles';
+        document.head.appendChild(holder);
+      }
+      const styles = doc.querySelectorAll('head style');
+      holder.innerHTML = Array.from(styles).map(s => s.outerHTML).join('');
+    },
+
+    runPageScripts(doc) {
+      const scripts = Array.from(doc.body.querySelectorAll('script'));
+      let afterAppJs = false;
+      scripts.forEach(s => {
+        if (s.src && s.src.includes('app.js')) {
+          afterAppJs = true;
+          return;
+        }
+        if (!afterAppJs) return;
+        const text = s.textContent || '';
+        if (text.includes('handleGlobalSearch') && text.includes('search-overlay')) return;
+        const el = document.createElement('script');
+        el.textContent = text;
+        document.body.appendChild(el);
+        el.remove();
+      });
+    },
+
+    runSearchUrlState() {
+      if (this.currentPage !== 'search') return;
+      const params = new URLSearchParams(window.location.search);
+      const genre = params.get('genre');
+      if (genre && typeof window.filterGenre === 'function') {
+        window.filterGenre(genre, false);
+      } else if (typeof window.clearSearch === 'function') {
+        window.clearSearch(false);
+      }
+    },
+
+    async navigate(url, options = {}) {
+      const { push = true } = options;
+      const targetUrl = this.normalizeUrl(url);
+      const targetPage = this.resolvePage(new URL(targetUrl).pathname);
+      if (!targetPage) {
+        window.location.href = targetUrl;
+        return;
+      }
+      if (this.navigating) return;
+      if (push && targetUrl === window.location.href && targetPage === this.currentPage) return;
+
+      this.navigating = true;
+      this.cleanupPage();
+
+      try {
+        const res = await fetch(targetUrl, {
+          credentials: 'same-origin',
+          headers: { 'X-Requested-With': 'SPA' },
+        });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+
+        const html = await res.text();
+        const doc = new DOMParser().parseFromString(html, 'text/html');
+        const fetchedContent = doc.getElementById('page-content');
+        const host = document.getElementById('page-content');
+        if (!fetchedContent || !host) throw new Error('Missing #page-content');
+
+        host.innerHTML = fetchedContent.innerHTML;
+        if (doc.title) document.title = doc.title;
+        this.applyPageStyles(doc);
+        this.runPageScripts(doc);
+
+        this.currentPage = targetPage;
+        this.updateNav(targetPage);
+
+        if (push) {
+          history.pushState({ spa: true, url: targetUrl }, '', targetUrl);
+        }
+
+        initProgressBars();
+        initVolume();
+        _updatePlayerUI();
+        this.runSearchUrlState();
+      } catch (err) {
+        console.error('SPA navigate failed, falling back to full load', err);
+        window.location.href = targetUrl;
+      } finally {
+        this.navigating = false;
+      }
+    },
+  };
+
+  async function restorePlayerState() {
+    const res = await API.get('/api/player/current');
+    if (!res || res._failed || !res.track) return;
+
+    if (res.loop === 'one') state.isLoop = 'one';
+    else if (res.loop === 'all') state.isLoop = 'all';
+    else state.isLoop = false;
+    _updateCtrlBtns();
+
+    applyTrack(res.track, res.waitList, false);
+  }
+
   // --- Init ---
-  function init() {
+  async function init() {
     initAudio();
     initTheme();
     initProgressBars();
     initVolume();
     initKeyboard();
-    loadFavorites();
+    await loadFavorites();
+    await restorePlayerState();
+    Router.init();
   }
 
   function renderTrackItem(t, num) {
@@ -635,9 +822,9 @@ const App = (() => {
   }
 
   return {
-    init, state, API,
+    init, state, API, Router,
     playTrack, applyTrack, togglePlay, nextTrack, prevTrack,
-    toggleShuffle, toggleLoop, seekTo, toggleFavorite, saveWaitingAsPlaylist,
+    toggleShuffle, toggleLoop, seekTo, setVolume, toggleFavorite, saveWaitingAsPlaylist,
     showToast, loadFavorites, showAddToPlaylistModal, closeAddToPlaylistModal, saveAddToPlaylistModal,
     renderModalPlaylists, toggleSongInPlaylist, filterPlaylistModalList,
     openCreatePlaylistFromModal, closeCreatePlaylistFromModal,
@@ -650,6 +837,15 @@ const App = (() => {
 // Global alias for inline scripts in JSP pages
 function renderTrackItem(t, num) {
   return App.renderTrackItem(t, num);
+}
+
+// SPA navigation helper for inline scripts
+function spaNavigate(url) {
+  if (App.Router && App.Router.isSpaUrl(url)) {
+    App.Router.navigate(url);
+  } else {
+    window.location.href = url;
+  }
 }
 
 document.addEventListener('DOMContentLoaded', () => App.init());

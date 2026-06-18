@@ -97,6 +97,14 @@ public class AudioPlayEngine {
         }
     }
 
+    public boolean isRepeatAllEnabled() {
+        return isRepeatAllEnabled;
+    }
+
+    public boolean isRepeatOne() {
+        return repeatOne;
+    }
+
     public void shuffleUpcoming() {
         if (currentTrackPointer == null || currentTrackPointer.next == null) {
             return;

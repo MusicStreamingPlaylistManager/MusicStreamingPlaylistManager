@@ -53,7 +53,6 @@
 
 <%@ include file="includes/layout-top.jspf" %>
 
-    <div class="page-content">
       <!-- Header -->
       <div class="pl-detail-banner" id="plBanner">
         <div class="pl-detail-icon" id="plIcon">
@@ -87,14 +86,13 @@
       <div class="track-list" id="trackList">
         <div style="color:var(--text3); font-size:.85rem; padding:.5rem">Loading...</div>
       </div>
-    </div>
 
 <%@ include file="includes/layout-bottom.jspf" %>
 
 <script>
 const IS_FAVOURITE = <%= isFavourite %>;
 const PLAYLIST_ID  = '<%= playlistId != null ? playlistId : "" %>';
-let tracks = [];
+var tracks = [];
 
 async function loadDetail() {
   let res;
@@ -213,7 +211,7 @@ async function deleteCurrent() {
 }
 
 // --- Drag & drop reorder ---
-let dragIdx = null;
+var dragIdx = null;
 function dragStart(e, i) { dragIdx = i; }
 function dragOver(e) { e.preventDefault(); e.currentTarget.classList.add('drag-over'); }
 function drop(e, targetIdx) {

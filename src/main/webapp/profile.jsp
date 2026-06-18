@@ -77,7 +77,6 @@
 
 <%@ include file="includes/layout-top.jspf" %>
 
-    <div class="page-content">
       <div class="profile-wrap">
         <!-- Avatar card -->
         <div class="avatar-card">
@@ -124,7 +123,6 @@
           </form>
         </div>
       </div>
-    </div>
 
 <%@ include file="includes/layout-bottom.jspf" %>
 

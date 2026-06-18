@@ -26,7 +26,8 @@ import utils.JsonHelper;
     "/api/player/waitlist",
     "/api/player/save-waiting",
     "/api/player/remove",
-    "/api/player/reorder"
+    "/api/player/reorder",
+    "/api/player/current"
 })
 public class PlayerServlet extends HttpServlet {
 
@@ -51,6 +52,16 @@ public class PlayerServlet extends HttpServlet {
         HttpSession session = request.getSession();
 
         try {
+            if ("/api/player/current".equals(path)) {
+                AudioPlayEngine currentEngine = (AudioPlayEngine) session.getAttribute(SESSION_ENGINE);
+                if (currentEngine == null) {
+                    out.print("{}");
+                } else {
+                    writeCurrentResponse(out, currentEngine);
+                }
+                return;
+            }
+
             AudioPlayEngine engine = getOrCreateEngine(session);
 
             if ("/api/player/next".equals(path)) {
@@ -209,6 +220,23 @@ public class PlayerServlet extends HttpServlet {
 
     private void syncWaitingList(HttpSession session, AudioPlayEngine engine) {
         session.setAttribute(SESSION_WAITING_LIST, engine.getWaitingList());
+    }
+
+    private void writeCurrentResponse(PrintWriter out, AudioPlayEngine engine) {
+        Song track = engine.getCurrentSong();
+        JsonObject root = new JsonObject();
+        if (track != null) {
+            root.add("track", JsonHelper.songToJson(track));
+        }
+        root.add("waitList", JsonHelper.waitListToJson(engine.getWaitingList()));
+        if (engine.isRepeatOne()) {
+            root.addProperty("loop", "one");
+        } else if (engine.isRepeatAllEnabled()) {
+            root.addProperty("loop", "all");
+        } else {
+            root.addProperty("loop", "off");
+        }
+        out.print(root.toString());
     }
 
     private void writeTrackResponse(PrintWriter out, AudioPlayEngine engine, Song track) {

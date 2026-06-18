@@ -1,5 +1,6 @@
 <%-- layout-bottom.jspf - Close main + inject player bar --%>
 <%@ page pageEncoding="UTF-8" contentType="text/html;charset=UTF-8" %>
+  </div>
   </main><div id="player-bar">
     <div class="player-left">
       <div class="player-thumb" id="bar-thumb">
@@ -103,7 +104,7 @@
 <div class="toast" id="sw-toast"></div>
 
 <script>window.APP_CONTEXT = '<%= request.getContextPath() %>';</script>
-<script src="<%= request.getContextPath() %>/assets/js/app.js?v=20260618"></script>
+<script src="<%= request.getContextPath() %>/assets/js/app.js?v=20260618b"></script>
 <script>
 // Global search (calls SongServlet API)
 async function handleGlobalSearch(val) {

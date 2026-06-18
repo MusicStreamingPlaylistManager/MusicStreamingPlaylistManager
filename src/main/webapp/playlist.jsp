@@ -102,12 +102,11 @@
 
 <%@ include file="includes/layout-top.jspf" %>
 
-    <div class="page-content">
       <h1 style="font-family:var(--font-display); font-size:1.5rem; font-weight:800; margin-bottom:1.5rem">My Playlist</h1>
 
       <!-- Favourite List (always shown, 1 per user) -->
       <div class="fav-banner-row"
-           onclick="window.location='<%= request.getContextPath() %>/playlist-detail.jsp?type=favourite'">
+           onclick="spaNavigate('<%= request.getContextPath() %>/playlist-detail.jsp?type=favourite')">
         <div class="fav-banner-thumb">❤️</div>
         <div>
           <div class="fav-banner-title">Favourite List</div>
@@ -127,7 +126,6 @@
         </div>
         <!-- Playlist cards injected by JS -->
       </div>
-    </div>
 
 <!-- Create Playlist Modal -->
 <div class="modal-bg" id="createModal">
@@ -146,7 +144,7 @@
 <%@ include file="includes/layout-bottom.jspf" %>
 
 <script>
-let playlists = [];
+var playlists = [];
 
 async function loadPlaylists() {
   const res = await App.API.get('/api/playlists');
@@ -188,7 +186,7 @@ function renderPlaylists() {
     
     // Sửa lỗi đường dẫn: Dùng request.getContextPath() từ JSP
     card.addEventListener('click', () => {
-      window.location = '<%= request.getContextPath() %>/playlist-detail.jsp?id=' + pl.playlistId;
+      spaNavigate('<%= request.getContextPath() %>/playlist-detail.jsp?id=' + pl.playlistId);
     });
     grid.appendChild(card);
   });
