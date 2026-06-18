@@ -9,7 +9,7 @@
         <div class="player-name" id="bar-name">No track selected</div>
         <div class="player-artist" id="bar-artist">—</div>
       </div>
-      <button class="player-heart" id="bar-heart"
+      <button class="player-heart" id="bar-heart" data-song-id=""
               onclick="App.toggleFavorite(App.getState().currentTrack?.songId, this)"
               title="Favourite">
         <svg><use href="#ic-heart"/></svg>
@@ -46,6 +46,7 @@
     <div class="player-right">
       <div class="vol-wrap">
         <svg><use href="#ic-volume"/></svg>
+
         <input type="range" class="vol-slider" min="0" max="100" value="75"
                oninput="App.setVolume(this.value)">
       </div>
@@ -57,10 +58,52 @@
   <div class="track-list" id="search-results-list"></div>
 </div>
 
+<!-- Add to Playlist Modal -->
+<div class="modal-bg" id="addToPlaylistModal" onclick="App.closeAddToPlaylistModal(event)">
+  <div class="modal spotify-playlist-modal" onclick="event.stopPropagation()">
+    <div class="modal-title">Add to playlist</div>
+    
+    <div class="playlist-search-wrap">
+      <svg class="search-icon" style="width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; flex-shrink: 0;" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="text" id="playlistSearchInput" placeholder="Find a playlist" oninput="App.filterPlaylistModalList(this.value)">
+    </div>
+    
+    <div class="new-playlist-btn" onclick="App.openCreatePlaylistFromModal()">
+      <span class="plus-icon">➕</span>
+      <span class="label">New playlist</span>
+    </div>
+    
+    <hr class="modal-divider">
+    
+    <div class="playlist-sections-scroll" id="modalPlaylistSections">
+      <!-- Injected by JavaScript -->
+    </div>
+    
+    <div class="modal-actions" style="margin-top: auto;">
+      <button class="btn-cancel" onclick="App.closeAddToPlaylistModal()">Cancel</button>
+      <button class="btn-done" onclick="App.saveAddToPlaylistModal()">Done</button>
+    </div>
+  </div>
+</div>
+
+<!-- Create Playlist Modal (Global) -->
+<div class="modal-bg" id="modalCreatePlaylist" onclick="App.closeCreatePlaylistFromModal(event)">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-title">Create New Playlist</div>
+    <div class="modal-sub">Enter your playlist name</div>
+    <input class="modal-input" type="text" id="modalPlNameInput"
+           placeholder="Eg: Chill Vibes, Workout Mix..." maxlength="60">
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="App.closeCreatePlaylistFromModal()">Cancel</button>
+      <button class="btn-confirm" onclick="App.confirmCreatePlaylistFromModal()">Create</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="sw-toast"></div>
 
 <script>window.APP_CONTEXT = '<%= request.getContextPath() %>';</script>
-<script src="<%= request.getContextPath() %>/assets/js/app.js?v=20260611"></script>
+<script src="<%= request.getContextPath() %>/assets/js/app.js?v=20260618"></script>
 <script>
 // Global search (calls SongServlet API)
 async function handleGlobalSearch(val) {
@@ -81,3 +124,248 @@ document.addEventListener('click', e => {
   }
 });
 </script>
+
+<style>
+/* CSS cho modal chọn playlist kiểu Spotify */
+.spotify-playlist-modal {
+  width: min(320px, calc(100vw - 32px)) !important; /* cho bảng nhỏ lại */
+  max-height: min(550px, calc(100vh - 48px)) !important;
+  padding: 1.25rem !important;
+  display: flex !important;
+  flex-direction: column !important;
+  background: #181818 !important; /* Nền tối Spotify */
+  color: #fff !important;
+  border: 1px solid rgba(255,255,255,0.08) !important;
+  border-radius: 8px !important;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.55) !important;
+}
+
+.spotify-playlist-modal .modal-title {
+  color: #fff !important;
+  font-size: 1.1rem !important;
+  font-weight: 750 !important;
+  margin-bottom: 0.8rem !important;
+}
+
+.playlist-search-wrap {
+  height: 36px !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  padding: 0 12px !important;
+  background: rgba(108, 43, 217, 0.12) !important; /* Tím nhạt */
+  border: 1px solid rgba(167, 139, 250, 0.35) !important;
+  border-radius: 8px !important;
+  color: #bda8f8 !important;
+  margin-bottom: 0.65rem !important;
+}
+
+.playlist-search-wrap input {
+  width: 100% !important;
+  min-width: 0 !important;
+  border: 0 !important;
+  outline: 0 !important;
+  background: transparent !important;
+  color: #fff !important;
+  font-size: 0.85rem !important;
+}
+
+.playlist-search-wrap input::placeholder {
+  color: #bda8f8 !important;
+  opacity: 0.7 !important;
+}
+
+.new-playlist-btn {
+  height: 36px !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+  padding: 0 10px !important;
+  border-radius: 8px !important;
+  background: rgba(108, 43, 217, 0.12) !important; /* Tím nhạt */
+  border: 1px solid rgba(167, 139, 250, 0.35) !important;
+  color: #efe9ff !important;
+  cursor: pointer !important;
+  font-weight: 700 !important;
+  font-size: 0.85rem !important;
+  transition: background 0.16s ease !important;
+}
+
+.new-playlist-btn:hover {
+  background: rgba(108, 43, 217, 0.22) !important;
+}
+
+.plus-icon {
+  width: 20px !important;
+  height: 20px !important;
+  border-radius: 4px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background: rgba(167, 139, 250, 0.28) !important;
+  color: #fff !important;
+  font-size: 0.7rem !important;
+}
+
+.modal-divider {
+  width: 100% !important;
+  border: 0 !important;
+  border-top: 1px solid rgba(255,255,255,0.1) !important;
+  margin: 0.6rem 0 !important;
+}
+
+.playlist-sections-scroll {
+  overflow-y: auto !important;
+  padding-right: 4px !important;
+  max-height: 280px !important;
+}
+
+.playlist-sections-scroll::-webkit-scrollbar {
+  width: 6px !important;
+}
+
+.playlist-sections-scroll::-webkit-scrollbar-thumb {
+  background: #555 !important;
+  border-radius: 999px !important;
+}
+
+.modal-section-label {
+  margin: 0.6rem 0 0.3rem !important;
+  color: #b3b3b3 !important;
+  font-size: 0.75rem !important;
+  font-weight: 700 !important;
+}
+
+.modal-playlist-row {
+  width: 100% !important;
+  min-height: 46px !important;
+  display: grid !important;
+  grid-template-columns: 30px 1fr 30px !important;
+  align-items: center !important;
+  gap: 10px !important;
+  padding: 4px 6px !important;
+  border: 0 !important;
+  border-radius: 6px !important;
+  background: transparent !important;
+  color: #fff !important;
+  text-align: left !important;
+  cursor: default !important;
+  transition: background 0.16s ease !important;
+}
+
+.modal-playlist-row:hover {
+  background: #2a2a2a !important;
+}
+
+.modal-playlist-icon {
+  width: 30px !important;
+  height: 30px !important;
+  border-radius: 4px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex-shrink: 0 !important;
+}
+
+.modal-playlist-icon svg {
+  width: 15px !important;
+  height: 15px !important;
+  stroke: currentColor !important;
+  fill: currentColor !important;
+}
+
+.liked-icon {
+  color: #fff !important;
+  background: linear-gradient(135deg, #7c3aed, #ec4899) !important;
+}
+
+.music-icon {
+  background: rgba(167, 139, 250, 0.16) !important;
+  color: #d8c8ff !important;
+  font-size: 0.95rem !important;
+  font-weight: 900 !important;
+}
+
+.modal-playlist-info {
+  min-width: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 2px !important;
+}
+
+.modal-playlist-name {
+  overflow: hidden !important;
+  color: #fff !important;
+  font-size: 0.85rem !important;
+  font-weight: 700 !important;
+  white-space: nowrap !important;
+  text-overflow: ellipsis !important;
+}
+
+.modal-playlist-meta {
+  color: #b3b3b3 !important;
+  font-size: 0.7rem !important;
+}
+
+.modal-checkmark-btn {
+  width: 24px !important;
+  height: 24px !important;
+  border: 1px solid rgba(255,255,255,0.32) !important;
+  border-radius: 50% !important;
+  background: transparent !important;
+  color: transparent !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+  font-size: 0.75rem !important;
+  font-weight: 900 !important;
+  transition: all 0.16s ease !important;
+}
+
+.modal-checkmark-btn:hover {
+  border-color: #1db954 !important;
+  transform: scale(1.06) !important;
+}
+
+.modal-checkmark-btn.checked {
+  background: #1db954 !important;
+  border-color: #1db954 !important;
+  color: #000 !important;
+}
+
+.spotify-playlist-modal .modal-actions {
+  display: flex !important;
+  justify-content: flex-end !important;
+  gap: 8px !important;
+  padding-top: 0.6rem !important;
+}
+
+.spotify-playlist-modal .btn-cancel,
+.spotify-playlist-modal .btn-done {
+  border: 0 !important;
+  border-radius: 999px !important;
+  font-weight: 800 !important;
+  padding: 0.45rem 1.15rem !important;
+  font-size: 0.8rem !important;
+  cursor: pointer !important;
+}
+
+.spotify-playlist-modal .btn-cancel {
+  background: #2a2a2a !important;
+  color: #fff !important;
+}
+
+.spotify-playlist-modal .btn-cancel:hover {
+  background: #3a3a3a !important;
+}
+
+.spotify-playlist-modal .btn-done {
+  background: #6d28d9 !important; /* Màu tím */
+  color: #fff !important; /* Chữ trắng */
+}
+
+.spotify-playlist-modal .btn-done:hover {
+  background: #5b21b6 !important;
+}
+</style>

@@ -425,6 +425,258 @@ body.dark .theme-toggle::after { transform: translateX(20px); }
 }
 .btn-confirm:hover { background: var(--accent2); }
 
+/* Spotify-style add-to-playlist modal */
+.spotify-playlist-modal {
+  width: min(370px, calc(100vw - 32px));
+  max-height: min(590px, calc(100vh - 48px));
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  background: #181818;
+  color: #fff;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 8px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.55);
+}
+
+.spotify-playlist-modal .modal-title {
+  color: #fff;
+  font-size: 1.05rem;
+  margin-bottom: 0.8rem;
+}
+
+.playlist-search-wrap {
+  height: 40px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 12px;
+  background: rgba(108,43,217,0.16);
+  border: 1px solid rgba(167,139,250,0.35);
+  border-radius: 8px;
+  color: #d8c8ff;
+  margin-bottom: 0.65rem;
+}
+
+.playlist-search-wrap .search-icon {
+  width: 18px;
+  height: 18px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 2;
+  flex-shrink: 0;
+}
+
+.playlist-search-wrap input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #fff;
+  font: 500 0.86rem var(--font-body);
+}
+
+.playlist-search-wrap input::placeholder {
+  color: #bda8f8;
+}
+
+.new-playlist-btn {
+  height: 40px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 10px;
+  border-radius: 8px;
+  background: rgba(108,43,217,0.16);
+  border: 1px solid rgba(167,139,250,0.35);
+  color: #efe9ff;
+  cursor: pointer;
+  font-weight: 700;
+  transition: background 0.16s ease;
+}
+
+.new-playlist-btn:hover {
+  background: rgba(108,43,217,0.26);
+}
+
+.plus-icon {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(167,139,250,0.28);
+  color: #fff;
+  font-size: 0.75rem;
+}
+
+.modal-divider {
+  width: 100%;
+  border: 0;
+  border-top: 1px solid rgba(255,255,255,0.1);
+  margin: 0.75rem 0;
+}
+
+.playlist-sections-scroll {
+  overflow-y: auto;
+  padding-right: 4px;
+  max-height: 330px;
+}
+
+.playlist-sections-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+
+.playlist-sections-scroll::-webkit-scrollbar-thumb {
+  background: #555;
+  border-radius: 999px;
+}
+
+.modal-section-label {
+  margin: 0.7rem 0 0.3rem;
+  color: #b3b3b3;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.modal-playlist-row {
+  width: 100%;
+  min-height: 50px;
+  display: grid;
+  grid-template-columns: 34px 1fr 30px;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 7px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #fff;
+  text-align: left;
+  cursor: default;
+  transition: background 0.16s ease;
+}
+
+.modal-playlist-row:hover {
+  background: #2a2a2a;
+}
+
+.modal-playlist-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.modal-playlist-icon svg {
+  width: 17px;
+  height: 17px;
+  stroke: currentColor;
+  fill: currentColor;
+}
+
+.liked-icon {
+  color: #fff;
+  background: linear-gradient(135deg, #7c3aed, #ec4899);
+}
+
+.music-icon {
+  background: rgba(167,139,250,0.16);
+  color: #d8c8ff;
+  font-size: 1.05rem;
+  font-weight: 900;
+}
+
+.modal-playlist-info {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.modal-playlist-name {
+  overflow: hidden;
+  color: #fff;
+  font-size: 0.86rem;
+  font-weight: 700;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.modal-playlist-meta {
+  color: #b3b3b3;
+  font-size: 0.72rem;
+}
+
+.modal-checkmark-btn {
+  width: 26px;
+  height: 26px;
+  border: 1px solid rgba(255,255,255,0.32);
+  border-radius: 50%;
+  background: transparent;
+  color: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 0.78rem;
+  font-weight: 900;
+  transition: border-color 0.16s ease, background 0.16s ease, color 0.16s ease, transform 0.12s ease;
+}
+
+.modal-checkmark-btn:hover {
+  border-color: #1db954;
+  transform: scale(1.06);
+}
+
+.modal-checkmark-btn.checked {
+  background: #1db954;
+  border-color: #1db954;
+  color: #000;
+}
+
+.modal-empty-state {
+  padding: 1rem 0.5rem;
+  color: #b3b3b3;
+  font-size: 0.86rem;
+}
+
+.spotify-playlist-modal .modal-actions {
+  padding-top: 0.75rem;
+}
+
+.spotify-playlist-modal .btn-cancel,
+.spotify-playlist-modal .btn-done {
+  border: 0;
+  border-radius: 999px;
+  font-weight: 800;
+  padding: 0.55rem 1.15rem;
+}
+
+.spotify-playlist-modal .btn-cancel:hover {
+  transform: scale(1.03);
+}
+
+.spotify-playlist-modal .btn-cancel {
+  background: #2a2a2a;
+  color: #fff;
+}
+
+.spotify-playlist-modal .btn-done {
+  background: var(--accent);
+  color: #fff;
+  cursor: pointer;
+}
+
+.spotify-playlist-modal .btn-done:hover {
+  background: var(--accent2);
+  transform: scale(1.03);
+}
+
 /* ===== TOAST ===== */
 .toast {
   position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%);

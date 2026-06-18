@@ -32,8 +32,7 @@ public class SQLGenerator {
 
         if (genreFolders != null) {
             for (File genreFolder : genreFolders) {
-                String genre = genreFolder.getName(); // Lấy tên thư mục làm Thể loại 
-                
+                String genre = genreFolder.getName(); // Lấy tên thư mục làm Thể loại (ballad, barbie playlist, piano, pop)              
                 // Đã sửa lại cú pháp lọc đuôi .mp3 cho tương thích Java 7
                 File[] songFiles = genreFolder.listFiles(new FilenameFilter() {
                     @Override

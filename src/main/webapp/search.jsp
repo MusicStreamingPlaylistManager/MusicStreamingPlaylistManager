@@ -121,6 +121,7 @@ async function filterGenre(genre, pushState = true) {
   section.classList.add('show');
   title.textContent = `Genre: ${genre}`;
   list.innerHTML = '<div style="color:var(--text3);font-size:.85rem;padding:.5rem">Loading...</div>';
+
   const res = await App.API.get('/api/songs/search?genre=' + encodeURIComponent(genre));
   if (!res || !res.songs || !res.songs.length) {
     list.innerHTML = '<div class="no-results">No songs in this genre yet.</div>';
@@ -129,6 +130,7 @@ async function filterGenre(genre, pushState = true) {
   title.textContent = `Genre: ${genre} (${res.songs.length})`;
   list.innerHTML = res.songs.map((t, i) => renderTrackItem(t, i + 1)).join('');
 }
+
 function clearSearch(pushState = true) {
   if (pushState) {
     history.pushState({ genre: null }, '', window.location.pathname);
@@ -137,7 +139,8 @@ function clearSearch(pushState = true) {
   document.getElementById('searchResultsSection').classList.remove('show');
   document.getElementById('globalSearch').value = '';
 }
-//back lại trang search
+
+// Handle browser Back/Forward navigation
 window.addEventListener('popstate', (event) => {
   const params = new URLSearchParams(window.location.search);
   const genre = params.get('genre');

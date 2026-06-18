@@ -67,7 +67,7 @@
         </div>
       </div>
 
-      <!-- Action buttons -->
+      <!-- Action buttons --> 
       <div class="pl-actions">
         <button class="btn-icon-lg" onclick="playAll()" title="Play all">
           <svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" fill="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
@@ -194,8 +194,7 @@ function playAll() {
 }
 
 async function removeFav(songId) {
-  const res = await App.API.postForm('/api/favorites/toggle', { songId });
-  if (res) { App.showToast('💔 Removed from favourites'); loadDetail(); }
+  await App.toggleFavorite(songId);
 }
 
 async function removeFromPlaylist(songId) {
