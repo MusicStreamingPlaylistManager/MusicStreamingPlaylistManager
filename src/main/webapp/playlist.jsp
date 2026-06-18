@@ -180,7 +180,10 @@ function renderPlaylists() {
         <div class="pl-count">${pl.songCount} song${pl.songCount !== 1 ? 's' : ''}</div>
       </div>
       <button class="pl-delete" onclick="deletePlaylist(event, ${pl.playlistId})" title="Delete">
-        <svg><use href="#ic-trash"/></svg>
+        <svg viewBox="0 0 24 24" style="width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round;">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
       </button>`;
     
     // Sửa lỗi đường dẫn: Dùng request.getContextPath() từ JSP

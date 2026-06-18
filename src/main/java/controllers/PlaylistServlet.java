@@ -38,7 +38,13 @@ public class PlaylistServlet extends HttpServlet {
             int userId = getUserId(request);
 
             if (pathInfo == null || "/".equals(pathInfo)) {
-                writePlaylistList(out, userId);
+                String songIdParam = request.getParameter("songId");
+                if (songIdParam != null) {
+                    int songId = Integer.parseInt(songIdParam);
+                    writePlaylistListWithSongStatus(out, userId, songId);
+                } else {
+                    writePlaylistList(out, userId);
+                }
             } else {
                 int playlistId = Integer.parseInt(pathInfo.substring(1));
                 writePlaylistDetail(out, userId, playlistId);
@@ -73,6 +79,8 @@ public class PlaylistServlet extends HttpServlet {
                 handleCreate(request, out, userId);
             } else if (path.endsWith("/delete")) {
                 handleDelete(request, out, userId);
+            } else if (path.endsWith("/addSong")) {
+                handleAddSong(request, out, userId);
             } else if (path.endsWith("/removeSong")) {
                 handleRemoveSong(request, out, userId);
             } else if (path.endsWith("/reorder")) {
@@ -192,6 +200,43 @@ public class PlaylistServlet extends HttpServlet {
 
         JsonObject root = new JsonObject();
         root.addProperty("success", playlistDAO.updateOrderIndexesPublic(playlistId, songIds));
+        out.print(root.toString());
+    }
+
+    private void handleAddSong(HttpServletRequest request, PrintWriter out, int userId) throws Exception {
+        int playlistId = Integer.parseInt(request.getParameter("playlistId"));
+        int songId = Integer.parseInt(request.getParameter("songId"));
+        Playlist playlist = playlistDAO.getById(playlistId);
+        if (playlist == null || playlist.getUserId() != userId) {
+            out.print("{\"success\":false,\"error\":\"Playlist not found\"}");
+            return;
+        }
+
+        JsonObject root = new JsonObject();
+        root.addProperty("success", playlistDAO.addSongToPlaylist(playlistId, songId));
+        out.print(root.toString());
+    }
+
+    private void writePlaylistListWithSongStatus(PrintWriter out, int userId, int songId) throws Exception {
+        playlistDAO.ensureDefaultFavouritePlaylist(userId);
+        DynamicPlaylistList list = playlistDAO.getPlaylistsByUserId(userId);
+
+        JsonArray playlists = new JsonArray();
+        for (int i = 0; i < list.size(); i++) {
+            Playlist pl = list.get(i);
+
+            JsonObject obj = new JsonObject();
+            obj.addProperty("playlistId", pl.getPlaylistId());
+            obj.addProperty("name", pl.getName());
+            obj.addProperty("type", pl.getType());
+            obj.addProperty("isDefault", pl.isIsDefault());
+            obj.addProperty("songCount", playlistDAO.countSongsInPlaylist(pl.getPlaylistId()));
+            obj.addProperty("containsSong", playlistDAO.playlistSongExistsPublic(pl.getPlaylistId(), songId));
+            playlists.add(obj);
+        }
+
+        JsonObject root = new JsonObject();
+        root.add("playlists", playlists);
         out.print(root.toString());
     }
 
