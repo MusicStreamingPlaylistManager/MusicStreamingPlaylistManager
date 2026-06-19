@@ -85,11 +85,8 @@
 <%@ include file="includes/layout-bottom.jspf" %>
 
 <script>
-// Override global search to show inline results on this page
-if (!window.__defaultGlobalSearch) {
-  window.__defaultGlobalSearch = window.handleGlobalSearch;
-}
-window.handleGlobalSearch = async function(val) {
+// Tìm kiếm trên trang Search hiển thị kết quả inline (thay vì overlay toàn cục).
+async function searchPageGlobalSearch(val) {
   if (!val.trim()) { clearSearch(); return; }
   // Hide global overlay
   document.getElementById('search-overlay').style.display = 'none';
@@ -108,11 +105,11 @@ window.handleGlobalSearch = async function(val) {
   }
   title.textContent = `Results for "${val}" (${res.songs.length})`;
   list.innerHTML = res.songs.map((t, i) => renderTrackItem(t, i + 1)).join('');
-};
+}
 
 async function filterGenre(genre, pushState = true) {
   if (pushState) {
-    history.pushState({ genre: genre }, '', '?genre=' + encodeURIComponent(genre));
+    history.pushState({ spa: true, url: window.location.href }, '', '?genre=' + encodeURIComponent(genre));
   }
   document.getElementById('browseSection').style.display = 'none';
   const section = document.getElementById('searchResultsSection');
@@ -133,14 +130,34 @@ async function filterGenre(genre, pushState = true) {
 
 function clearSearch(pushState = true) {
   if (pushState) {
-    history.pushState({ genre: null }, '', window.location.pathname);
+    history.pushState({ spa: true, url: window.location.pathname }, '', window.location.pathname);
   }
   document.getElementById('browseSection').style.display = 'block';
   document.getElementById('searchResultsSection').classList.remove('show');
   document.getElementById('globalSearch').value = '';
 }
 
-// Genre filter state is handled by App.Router (popstate + initial URL)
+// Đồng bộ trạng thái filter từ URL (?genre=...). Dùng cho cả init lẫn popstate.
+function syncSearchFromUrl() {
+  const genre = new URLSearchParams(window.location.search).get('genre');
+  if (genre) filterGenre(genre, false);
+  else clearSearch(false);
+}
+
+function initSearch() {
+  // Override ô tìm kiếm toàn cục, lưu lại bản gốc để khôi phục khi rời trang.
+  if (!window.__defaultGlobalSearch) window.__defaultGlobalSearch = window.handleGlobalSearch;
+  window.handleGlobalSearch = searchPageGlobalSearch;
+  syncSearchFromUrl();
+}
+
+function cleanupSearch() {
+  // Trả lại ô tìm kiếm toàn cục về hành vi mặc định.
+  if (window.__defaultGlobalSearch) window.handleGlobalSearch = window.__defaultGlobalSearch;
+}
+
+// Phase 3: genre filter dùng History API được gộp vào router global qua onPopState.
+App.Router.register('search', { init: initSearch, cleanup: cleanupSearch, onPopState: syncSearchFromUrl });
 </script>
 
 </body>

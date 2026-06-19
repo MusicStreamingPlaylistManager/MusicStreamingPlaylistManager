@@ -203,7 +203,7 @@
         <%@ include file="includes/layout-bottom.jspf" %>
 
         <script>
-            (async function initHome() {
+            async function initHome() {
             // Load picks
             const songs = await App.API.get('/api/songs?limit=5');
             const picksGrid = document.getElementById('picksGrid');
@@ -239,7 +239,10 @@
               recentList.innerHTML = '<p style="color:var(--text3);font-size:.85rem;padding:.5rem">Play a song to see your history here.</p>';
             }
           }
-        })();
+        }
+
+        // Phase 3: đăng ký lifecycle cho router (router sẽ gọi init() khi vào trang).
+        App.Router.register('home', { init: initHome });
         </script>
 
     </body>

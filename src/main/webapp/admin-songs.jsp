@@ -154,7 +154,12 @@ async function deleteSong(id) {
   }
 }
 
-loadSongs();
+function initAdmin() {
+  // Trang chỉ admin (server đã chặn redirect non-admin; sidebar cũng chỉ hiện link cho admin).
+  loadSongs();
+}
+
+App.Router.register('admin', { init: initAdmin });
 </script>
 </body>
 </html>

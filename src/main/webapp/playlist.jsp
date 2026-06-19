@@ -194,7 +194,13 @@ function renderPlaylists() {
 
 async function deletePlaylist(e, id) {
   e.stopPropagation();
-  if (!confirm('Delete this playlist?')) return;
+  const ok = await App.confirm({
+    title: 'Delete playlist',
+    message: 'Are you sure you want to delete this playlist? This cannot be undone.',
+    okText: 'Delete',
+    danger: true
+  });
+  if (!ok) return;
   const res = await App.API.postForm('/api/playlists/delete', { playlistId: id });
   if (res && res.success) {
     App.showToast('🗑 Playlist deleted');
@@ -225,12 +231,19 @@ async function confirmCreate() {
 }
 
 // Enter key in modal
-document.getElementById('plNameInput').addEventListener('keydown', e => {
+function onPlNameKeydown(e) {
   if (e.key === 'Enter') confirmCreate();
   if (e.key === 'Escape') closeCreateModal();
-});
+}
 
-loadPlaylists();
+function initPlaylist() {
+  const input = document.getElementById('plNameInput');
+  if (input) input.addEventListener('keydown', onPlNameKeydown);
+  loadPlaylists();
+}
+
+// Phase 3: không cần cleanup (input được tạo mới mỗi lần vào trang).
+App.Router.register('playlist', { init: initPlaylist });
 </script>
 </body>
 </html>

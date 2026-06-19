@@ -55,6 +55,28 @@ public class UserDAO {
         }
     }
 
+    public boolean updateUsername(int userId, String newUsername) throws Exception {
+        String sql = "UPDATE Users SET Username = ? WHERE UserID = ?";
+        try (Connection conn = DBUtils.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setString(1, newUsername);
+            ps.setInt(2, userId);
+            return ps.executeUpdate() > 0;
+        }
+    }
+
+    public boolean updatePassword(int userId, String newPassword) throws Exception {
+        String sql = "UPDATE Users SET Password = ? WHERE UserID = ?";
+        try (Connection conn = DBUtils.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setString(1, PasswordUtils.hash(newPassword));
+            ps.setInt(2, userId);
+            return ps.executeUpdate() > 0;
+        }
+    }
+
     public User getById(int userId) throws Exception {
         String sql = "SELECT * FROM Users WHERE UserID = ?";
         try (Connection conn = DBUtils.getConnection();

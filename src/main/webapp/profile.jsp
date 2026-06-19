@@ -127,7 +127,7 @@
 <%@ include file="includes/layout-bottom.jspf" %>
 
 <script>
-document.getElementById('profileForm').addEventListener('submit', function(e) {
+function onProfileSubmit(e) {
   const np = document.getElementById('newPass').value;
   const cp = document.getElementById('confirmPass').value;
   const err = document.getElementById('confirmErr');
@@ -136,7 +136,15 @@ document.getElementById('profileForm').addEventListener('submit', function(e) {
     err.classList.add('show');
     e.preventDefault();
   }
-});
+}
+
+function initProfile() {
+  const form = document.getElementById('profileForm');
+  if (form) form.addEventListener('submit', onProfileSubmit);
+}
+
+// Phase 3: form được tạo mới mỗi lần vào trang nên không cần cleanup.
+App.Router.register('profile', { init: initProfile });
 </script>
 </body>
 </html>

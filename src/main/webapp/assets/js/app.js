@@ -167,6 +167,12 @@ const App = (() => {
        });
   }
 
+  function stopPlayback() {
+    state.isPlaying = false;
+    audio.pause();
+    _updatePlayBtns();
+  }
+
   function togglePlay() {
     if (!state.currentTrack) return;
     state.isPlaying = !state.isPlaying;
@@ -201,11 +207,12 @@ const App = (() => {
     });
   }
 
-  function toggleShuffle() {
-    state.isShuffle = !state.isShuffle;
-    _updateCtrlBtns();
-    showToast(state.isShuffle ? '🔀 Shuffle on' : '🔀 Shuffle off');
-    API.postForm('/api/player/shuffle', { enabled: state.isShuffle });
+  // Shuffle là hành động một-lần: mỗi lần bấm trộn lại các bài sắp tới trong hàng chờ.
+  function shuffle() {
+    API.postForm('/api/player/shuffle', {}).then(res => {
+      if (res && res.waitList) _setWaitList(res.waitList);
+      showToast('🔀 Shuffled');
+    });
   }
 
   function toggleLoop() {
@@ -518,9 +525,7 @@ const App = (() => {
   }
 
   function _updateCtrlBtns() {
-    document.querySelectorAll('[data-ctrl="shuffle"]').forEach(b => {
-      b.classList.toggle('active', state.isShuffle);
-    });
+    // Shuffle không còn trạng thái bật/tắt nên không tô sáng. Chỉ loop có trạng thái.
     document.querySelectorAll('[data-ctrl="loop"]').forEach(b => {
       b.classList.toggle('active', !!state.isLoop);
     });
@@ -552,6 +557,86 @@ const App = (() => {
     toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
   }
 
+  // Hộp thoại xác nhận của app (thay window.confirm). Trả Promise<boolean>.
+  function appConfirm(opts) {
+    opts = opts || {};
+    return new Promise(resolve => {
+      const modal = document.getElementById('appConfirmModal');
+      const okBtn = document.getElementById('appConfirmOk');
+      const cancelBtn = document.getElementById('appConfirmCancel');
+      if (!modal || !okBtn || !cancelBtn) { resolve(window.confirm(opts.message || 'Are you sure?')); return; }
+      document.getElementById('appConfirmTitle').textContent = opts.title || 'Confirm';
+      document.getElementById('appConfirmMsg').textContent = opts.message || '';
+      okBtn.textContent = opts.okText || 'OK';
+      okBtn.classList.toggle('danger', !!opts.danger);
+
+      let done = false;
+      const close = (result) => {
+        if (done) return;
+        done = true;
+        modal.classList.remove('show');
+        okBtn.removeEventListener('click', onOk);
+        cancelBtn.removeEventListener('click', onCancel);
+        modal.removeEventListener('click', onBg);
+        document.removeEventListener('keydown', onKey);
+        resolve(result);
+      };
+      const onOk = () => close(true);
+      const onCancel = () => close(false);
+      const onBg = (e) => { if (e.target === modal) close(false); };
+      const onKey = (e) => { if (e.key === 'Escape') close(false); if (e.key === 'Enter') close(true); };
+
+      okBtn.addEventListener('click', onOk);
+      cancelBtn.addEventListener('click', onCancel);
+      modal.addEventListener('click', onBg);
+      document.addEventListener('keydown', onKey);
+      modal.classList.add('show');
+    });
+  }
+
+  // Hộp thoại nhập text của app (thay window.prompt). Trả Promise<string|null>.
+  function appPrompt(opts) {
+    opts = opts || {};
+    return new Promise(resolve => {
+      const modal = document.getElementById('appPromptModal');
+      const input = document.getElementById('appPromptInput');
+      const okBtn = document.getElementById('appPromptOk');
+      const cancelBtn = document.getElementById('appPromptCancel');
+      if (!modal || !input || !okBtn || !cancelBtn) { resolve(window.prompt(opts.message || '')); return; }
+      document.getElementById('appPromptTitle').textContent = opts.title || 'Enter';
+      document.getElementById('appPromptMsg').textContent = opts.message || '';
+      input.placeholder = opts.placeholder || '';
+      input.value = opts.value || '';
+      okBtn.textContent = opts.okText || 'OK';
+
+      let done = false;
+      const close = (result) => {
+        if (done) return;
+        done = true;
+        modal.classList.remove('show');
+        okBtn.removeEventListener('click', onOk);
+        cancelBtn.removeEventListener('click', onCancel);
+        modal.removeEventListener('click', onBg);
+        input.removeEventListener('keydown', onKey);
+        resolve(result);
+      };
+      const onOk = () => { const v = input.value.trim(); close(v ? v : null); };
+      const onCancel = () => close(null);
+      const onBg = (e) => { if (e.target === modal) close(null); };
+      const onKey = (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); onOk(); }
+        if (e.key === 'Escape') { e.preventDefault(); onCancel(); }
+      };
+
+      okBtn.addEventListener('click', onOk);
+      cancelBtn.addEventListener('click', onCancel);
+      modal.addEventListener('click', onBg);
+      input.addEventListener('keydown', onKey);
+      modal.classList.add('show');
+      setTimeout(() => input.focus(), 0);
+    });
+  }
+
   // Theme toggle
   function initTheme() {
     const saved = localStorage.getItem('sw-theme') || 'light';
@@ -564,9 +649,14 @@ const App = (() => {
     });
   }
 
-  // Progress bar click
+  // Progress bar click.
+  // Idempotent: navigate() gọi lại mỗi lần chuyển trang, nhưng phần tử shell (player bar)
+  // chỉ được gắn listener một lần (tránh tích tụ listener). Phần tử do trang mới chèn vào
+  // sẽ được gắn khi xuất hiện lần đầu.
   function initProgressBars() {
     document.querySelectorAll('.progress-track').forEach(bar => {
+      if (bar.dataset.bound) return;
+      bar.dataset.bound = '1';
       bar.addEventListener('click', e => {
         const rect = bar.getBoundingClientRect();
         const pct = ((e.clientX - rect.left) / rect.width) * 100;
@@ -575,10 +665,12 @@ const App = (() => {
     });
   }
 
-  // Volume slider
+  // Volume slider (cũng idempotent như initProgressBars).
   function initVolume() {
     document.querySelectorAll('.vol-slider').forEach(s => {
-      s.value = state.volume;
+      s.value = state.volume; // luôn đồng bộ giá trị hiển thị
+      if (s.dataset.bound) return;
+      s.dataset.bound = '1';
       s.addEventListener('input', () => setVolume(parseInt(s.value)));
     });
   }
@@ -594,7 +686,8 @@ const App = (() => {
   }
 
   // --- SPA Router (AJAX + History API) ---
-  const SPA_PAGES = {
+  // Map từ file JSP → "page key". Dùng để biết một URL thuộc route nào.
+  const ROUTE_FILES = {
     'home.jsp': 'home',
     'search.jsp': 'search',
     'playlist.jsp': 'playlist',
@@ -605,8 +698,29 @@ const App = (() => {
   };
 
   const Router = {
+    // pageKey → { init, cleanup, onPopState } — mỗi trang tự register lifecycle của mình.
+    routes: {},
     currentPage: null,
     navigating: false,
+
+    // Phase 3: mỗi trang gọi App.Router.register('home', { init, cleanup }) trong <script> của nó.
+    register(pageKey, handlers) {
+      this.routes[pageKey] = Object.assign(this.routes[pageKey] || {}, handlers || {});
+    },
+
+    runInit(pageKey) {
+      const r = this.routes[pageKey];
+      if (r && typeof r.init === 'function') {
+        try { r.init(); } catch (err) { console.error('init() failed for', pageKey, err); }
+      }
+    },
+
+    runCleanup(pageKey) {
+      const r = this.routes[pageKey];
+      if (r && typeof r.cleanup === 'function') {
+        try { r.cleanup(); } catch (err) { console.error('cleanup() failed for', pageKey, err); }
+      }
+    },
 
     init() {
       this.currentPage = this.resolvePage(window.location.pathname);
@@ -614,12 +728,13 @@ const App = (() => {
       this.updateNav(this.currentPage);
       document.addEventListener('click', e => this.onClick(e));
       window.addEventListener('popstate', e => this.onPopState(e));
-      this.runSearchUrlState();
+      // Trang đầu tiên load full → gọi init() của nó (script trang đã register xong khi parse).
+      this.runInit(this.currentPage);
     },
 
     resolvePage(pathname) {
       const file = pathname.substring(pathname.lastIndexOf('/') + 1);
-      return SPA_PAGES[file] || null;
+      return ROUTE_FILES[file] || null;
     },
 
     isSpaUrl(url) {
@@ -651,9 +766,14 @@ const App = (() => {
 
     onPopState(e) {
       const targetPage = this.resolvePage(window.location.pathname);
-      if (targetPage === this.currentPage && targetPage === 'search') {
-        this.runSearchUrlState();
-        return;
+      // Back/forward trong cùng một trang (vd: đổi ?genre của search) → để trang tự sync từ URL,
+      // tránh fetch lại cả trang và tránh xung đột 2 handler popstate.
+      if (targetPage && targetPage === this.currentPage) {
+        const r = this.routes[targetPage];
+        if (r && typeof r.onPopState === 'function') {
+          r.onPopState();
+          return;
+        }
       }
       this.navigate(window.location.href, { push: false });
     },
@@ -662,16 +782,6 @@ const App = (() => {
       document.querySelectorAll('#sidebar .nav-item[data-page]').forEach(el => {
         el.classList.toggle('active', el.dataset.page === pageKey);
       });
-    },
-
-    cleanupPage() {
-      if (window.__npSyncInterval) {
-        clearInterval(window.__npSyncInterval);
-        window.__npSyncInterval = null;
-      }
-      if (this.currentPage === 'search' && window.__defaultGlobalSearch) {
-        window.handleGlobalSearch = window.__defaultGlobalSearch;
-      }
     },
 
     applyPageStyles(doc) {
@@ -685,33 +795,18 @@ const App = (() => {
       holder.innerHTML = Array.from(styles).map(s => s.outerHTML).join('');
     },
 
+    // Chạy lại CHỈ script riêng của trang (script shell đánh dấu data-shell sẽ bị bỏ qua
+    // vì chúng đã được load sẵn trong layout). Script trang giờ chỉ định nghĩa hàm + register,
+    // không tự chạy logic, nên re-execute là an toàn (không còn const top-level đụng nhau).
     runPageScripts(doc) {
-      const scripts = Array.from(doc.body.querySelectorAll('script'));
-      let afterAppJs = false;
-      scripts.forEach(s => {
-        if (s.src && s.src.includes('app.js')) {
-          afterAppJs = true;
-          return;
-        }
-        if (!afterAppJs) return;
-        const text = s.textContent || '';
-        if (text.includes('handleGlobalSearch') && text.includes('search-overlay')) return;
+      Array.from(doc.body.querySelectorAll('script')).forEach(s => {
+        if (s.src) return;                       // bỏ qua external script (app.js, ...)
+        if (s.dataset && s.dataset.shell) return; // bỏ qua script của shell
         const el = document.createElement('script');
-        el.textContent = text;
+        el.textContent = s.textContent || '';
         document.body.appendChild(el);
         el.remove();
       });
-    },
-
-    runSearchUrlState() {
-      if (this.currentPage !== 'search') return;
-      const params = new URLSearchParams(window.location.search);
-      const genre = params.get('genre');
-      if (genre && typeof window.filterGenre === 'function') {
-        window.filterGenre(genre, false);
-      } else if (typeof window.clearSearch === 'function') {
-        window.clearSearch(false);
-      }
     },
 
     async navigate(url, options = {}) {
@@ -726,7 +821,7 @@ const App = (() => {
       if (push && targetUrl === window.location.href && targetPage === this.currentPage) return;
 
       this.navigating = true;
-      this.cleanupPage();
+      this.runCleanup(this.currentPage); // dọn dẹp trang cũ (clear interval, remove listeners)
 
       try {
         const res = await fetch(targetUrl, {
@@ -744,7 +839,7 @@ const App = (() => {
         host.innerHTML = fetchedContent.innerHTML;
         if (doc.title) document.title = doc.title;
         this.applyPageStyles(doc);
-        this.runPageScripts(doc);
+        this.runPageScripts(doc); // định nghĩa + register lifecycle của trang mới
 
         this.currentPage = targetPage;
         this.updateNav(targetPage);
@@ -756,7 +851,7 @@ const App = (() => {
         initProgressBars();
         initVolume();
         _updatePlayerUI();
-        this.runSearchUrlState();
+        this.runInit(targetPage); // khởi tạo trang mới
       } catch (err) {
         console.error('SPA navigate failed, falling back to full load', err);
         window.location.href = targetUrl;
@@ -823,9 +918,10 @@ const App = (() => {
 
   return {
     init, state, API, Router,
-    playTrack, applyTrack, togglePlay, nextTrack, prevTrack,
-    toggleShuffle, toggleLoop, seekTo, setVolume, toggleFavorite, saveWaitingAsPlaylist,
-    showToast, loadFavorites, showAddToPlaylistModal, closeAddToPlaylistModal, saveAddToPlaylistModal,
+    playTrack, applyTrack, togglePlay, stopPlayback, nextTrack, prevTrack,
+    shuffle, toggleLoop, seekTo, setVolume, toggleFavorite, saveWaitingAsPlaylist,
+    showToast, confirm: appConfirm, prompt: appPrompt,
+    loadFavorites, showAddToPlaylistModal, closeAddToPlaylistModal, saveAddToPlaylistModal,
     renderModalPlaylists, toggleSongInPlaylist, filterPlaylistModalList,
     openCreatePlaylistFromModal, closeCreatePlaylistFromModal,
     confirmCreatePlaylistFromModal, syncHeartButtons,
