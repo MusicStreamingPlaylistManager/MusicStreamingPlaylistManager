@@ -204,7 +204,7 @@
 
         <!-- Controls -->
         <div class="np-controls">
-          <button class="np-ctrl" data-ctrl="shuffle" onclick="App.toggleShuffle()" title="Shuffle">
+          <button class="np-ctrl" data-ctrl="shuffle" onclick="App.shuffle()" title="Shuffle upcoming">
             <svg><use href="#ic-shuffle"/></svg>
           </button>
           <button class="np-ctrl" onclick="App.prevTrack()" title="Previous">
@@ -253,11 +253,11 @@ function handleSeek(e, bar) {
 }
 
 // Sync .p-play buttons on this page to match np-play
-const origToggle = App.togglePlay.bind(App);
 
 // Render wait list
 window.renderWaitList = function(list) {
   const el = document.getElementById('waitListEl');
+  if (!el) return; // không ở trang Now Playing → bỏ qua
   if (!list || !list.length) {
     el.innerHTML = '<div class="wl-empty">No songs queued.</div>';
     return;
@@ -268,12 +268,11 @@ window.renderWaitList = function(list) {
     const cover = t.coverPath
       ? `<img src="${t.coverPath}" alt="">`
       : `<span>${t.emoji || '🎵'}</span>`;
-    const trackJson = JSON.stringify(t).replace(/"/g, '&quot;');
     return `
       <div class="wl-track ${isCurrent ? 'current' : ''}"
            draggable="true"
            data-song-id="${t.songId}"
-           ondblclick="App.playTrack(${trackJson})">
+           ondblclick="jumpToTrack(${t.songId})">
         <span class="wl-num">${isCurrent ? '▶' : i + 1}</span>
         <div class="wl-thumb">${cover}</div>
         <div>
@@ -291,25 +290,36 @@ window.renderWaitList = function(list) {
   initDragAndDrop();
 };
 
-// Load wait list on open
-(async function() {
+// Load wait list từ server
+async function loadWaitList() {
   const res = await App.API.get('/api/player/waitlist');
   if (res && res.waitList) renderWaitList(res.waitList);
-})();
+}
+
+// Bấm một bài trong hàng chờ → chỉ dời con trỏ tới bài đó (không dựng lại / trộn hàng chờ).
+async function jumpToTrack(songId) {
+  const res = await App.API.postForm('/api/player/jump', { songId });
+  if (res && res.track) App.applyTrack(res.track, res.waitList);
+}
 
 async function saveWaitingList() {
-  const name = prompt('Enter playlist name to save this waiting list:');
-  if (!name || !name.trim()) return;
-  const id = await App.saveWaitingAsPlaylist(name.trim());
+  const name = await App.prompt({
+    title: 'Save as playlist',
+    message: 'Enter a name for the new playlist',
+    placeholder: 'Eg: Chill Vibes, Workout Mix...',
+    okText: 'Save'
+  });
+  if (!name) return;
+  const id = await App.saveWaitingAsPlaylist(name);
   if (id) {
-    window.location = '<%= request.getContextPath() %>/playlist-detail.jsp?id=' + id;
+    spaNavigate('<%= request.getContextPath() %>/playlist-detail.jsp?id=' + id);
   }
 }
 
 // Sync all np-ctrl active states
 function syncNpControls() {
   const s = App.getState();
-  document.querySelectorAll('[data-ctrl="shuffle"]').forEach(b => b.classList.toggle('active', s.isShuffle));
+  // Shuffle là nút one-shot (không có trạng thái active); chỉ loop mới tô sáng.
   document.querySelectorAll('[data-ctrl="loop"]').forEach(b => b.classList.toggle('active', !!s.isLoop));
   // Sync np-play button icon
   const np = document.querySelector('.np-play');
@@ -319,12 +329,17 @@ function syncNpControls() {
       : `<svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" fill="currentColor" stroke-width="2"><polygon points="5,3 19,12 5,21"/></svg>`;
   }
 }
-setInterval(syncNpControls, 300);
 
 // Xóa bài khỏi WaitList
 async function removeFromWaitList(songId) {
   const res = await App.API.postForm('/api/player/remove', { songId });
-  if (res && res.waitList) renderWaitList(res.waitList);
+  if (!res) return;
+  // Nếu xóa đúng bài đang phát: chuyển sang bài hiện tại mới, hoặc dừng nếu hết hàng chờ.
+  if (res.removedCurrent) {
+    if (res.track) App.applyTrack(res.track, res.waitList, App.getState().isPlaying);
+    else App.stopPlayback();
+  }
+  if (res.waitList) renderWaitList(res.waitList);
 }
 
 // Kéo thả trong WaitList
@@ -364,6 +379,23 @@ function initDragAndDrop() {
     });
   });
 }
+
+function initNowPlaying() {
+  loadWaitList();
+  syncNpControls();
+  // setInterval cập nhật trạng thái nút play/shuffle/loop — BẮT BUỘC clear khi rời trang.
+  if (window.__npSyncInterval) clearInterval(window.__npSyncInterval);
+  window.__npSyncInterval = setInterval(syncNpControls, 300);
+}
+
+function cleanupNowPlaying() {
+  if (window.__npSyncInterval) {
+    clearInterval(window.__npSyncInterval);
+    window.__npSyncInterval = null;
+  }
+}
+
+App.Router.register('nowplaying', { init: initNowPlaying, cleanup: cleanupNowPlaying });
 </script>
 </body>
 </html>

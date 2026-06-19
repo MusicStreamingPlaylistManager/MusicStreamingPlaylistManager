@@ -38,26 +38,26 @@
     <div class="logo">SoundWave</div>
     <div class="nav-section">
       <p class="nav-label">Explore</p>
-      <a class="nav-item <%= "home".equals(topCurrentPage) ? "active" : "" %>" href="<%= request.getContextPath() %>/home.jsp">
+      <a class="nav-item <%= "home".equals(topCurrentPage) ? "active" : "" %>" data-page="home" href="<%= request.getContextPath() %>/home.jsp">
         <svg><use href="#ic-home"/></svg> Home
       </a>
-      <a class="nav-item <%= "search".equals(topCurrentPage) ? "active" : "" %>" href="<%= request.getContextPath() %>/search.jsp">
+      <a class="nav-item <%= "search".equals(topCurrentPage) ? "active" : "" %>" data-page="search" href="<%= request.getContextPath() %>/search.jsp">
         <svg><use href="#ic-search"/></svg> Search
       </a>
     </div>
     <div class="nav-section">
       <p class="nav-label">My Library</p>
-      <a class="nav-item <%= "playlist".equals(topCurrentPage) ? "active" : "" %>" href="<%= request.getContextPath() %>/playlist.jsp">
+      <a class="nav-item <%= "playlist".equals(topCurrentPage) ? "active" : "" %>" data-page="playlist" href="<%= request.getContextPath() %>/playlist.jsp">
         <svg><use href="#ic-playlist"/></svg> Playlist
       </a>
-      <a class="nav-item <%= "nowplaying".equals(topCurrentPage) ? "active" : "" %>" href="<%= request.getContextPath() %>/nowplaying.jsp">
+      <a class="nav-item <%= "nowplaying".equals(topCurrentPage) ? "active" : "" %>" data-page="nowplaying" href="<%= request.getContextPath() %>/nowplaying.jsp">
         <svg><use href="#ic-play"/></svg> Now Playing
       </a>
     </div>
     <% if (topIsAdmin) { %>
     <div class="nav-section">
       <p class="nav-label">Admin</p>
-      <a class="nav-item <%= "admin".equals(topCurrentPage) ? "active" : "" %>" href="<%= request.getContextPath() %>/admin-songs.jsp">
+      <a class="nav-item <%= "admin".equals(topCurrentPage) ? "active" : "" %>" data-page="admin" href="<%= request.getContextPath() %>/admin-songs.jsp">
         <svg><use href="#ic-playlist"/></svg> Manage Songs
       </a>
     </div>
@@ -78,6 +78,7 @@
         </div>
       </div>
       <div class="topbar-right">
-        <a class="user-btn" href="<%= request.getContextPath() %>/profile.jsp"><%= topInitials %></a>
+        <a class="user-btn" data-page="profile" href="<%= request.getContextPath() %>/profile.jsp"><%= topInitials %></a>
       </div>
     </div>
+    <div id="page-content" class="page-content">

@@ -172,7 +172,6 @@
         <%-- Include top layout (sidebar + topbar opening) --%>
         <%@ include file="includes/layout-top.jspf" %>
 
-        <div class="page-content">
             <!-- Banner -->
             <div class="banner">
                 <div class="banner-icon">🎵</div>
@@ -185,7 +184,7 @@
             <!-- Personalized Picks -->
             <div class="section-title">
                 Personalized Picks
-                <span class="section-more" onclick="window.location = '<%= request.getContextPath()%>/search.jsp'">All</span>
+                <span class="section-more" onclick="spaNavigate('<%= request.getContextPath()%>/search.jsp')">All</span>
             </div>
             <div class="picks-grid" id="picksGrid">
                 <div style="color:var(--text3); font-size:.85rem; padding:.5rem">Loading...</div>
@@ -194,18 +193,17 @@
             <!-- Recently Played -->
             <div class="section-title">
                 Recently Played
-                <span class="section-more" onclick="window.location = '<%= request.getContextPath()%>/nowplaying.jsp'">All</span>
+                <span class="section-more" onclick="spaNavigate('<%= request.getContextPath()%>/nowplaying.jsp')">All</span>
             </div>
             <div class="track-list" id="recentList">
                 <div style="color:var(--text3); font-size:.85rem; padding:.5rem">Loading...</div>
             </div>
-        </div>
 
         <%-- Include bottom layout (player bar + scripts closing) --%>
         <%@ include file="includes/layout-bottom.jspf" %>
 
         <script>
-            (async function initHome() {
+            async function initHome() {
             // Load picks
             const songs = await App.API.get('/api/songs?limit=5');
             const picksGrid = document.getElementById('picksGrid');
@@ -241,7 +239,10 @@
               recentList.innerHTML = '<p style="color:var(--text3);font-size:.85rem;padding:.5rem">Play a song to see your history here.</p>';
             }
           }
-        })();
+        }
+
+        // Phase 3: đăng ký lifecycle cho router (router sẽ gọi init() khi vào trang).
+        App.Router.register('home', { init: initHome });
         </script>
 
     </body>

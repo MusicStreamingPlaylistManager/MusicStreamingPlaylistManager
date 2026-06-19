@@ -26,7 +26,9 @@ import utils.JsonHelper;
     "/api/player/waitlist",
     "/api/player/save-waiting",
     "/api/player/remove",
-    "/api/player/reorder"
+    "/api/player/reorder",
+    "/api/player/jump",
+    "/api/player/current"
 })
 public class PlayerServlet extends HttpServlet {
 
@@ -51,6 +53,16 @@ public class PlayerServlet extends HttpServlet {
         HttpSession session = request.getSession();
 
         try {
+            if ("/api/player/current".equals(path)) {
+                AudioPlayEngine currentEngine = (AudioPlayEngine) session.getAttribute(SESSION_ENGINE);
+                if (currentEngine == null) {
+                    out.print("{}");
+                } else {
+                    writeCurrentResponse(out, currentEngine);
+                }
+                return;
+            }
+
             AudioPlayEngine engine = getOrCreateEngine(session);
 
             if ("/api/player/next".equals(path)) {
@@ -96,16 +108,16 @@ public class PlayerServlet extends HttpServlet {
             if ("/api/player/play".equals(path)) {
                 handlePlay(request, session, out);
             } else if ("/api/player/shuffle".equals(path)) {
+                // Shuffle là hành động một-lần: mỗi lần bấm trộn lại các bài SẮP TỚI.
                 AudioPlayEngine engine = getOrCreateEngine(session);
-                boolean enabled = "true".equalsIgnoreCase(request.getParameter("enabled"));
-                if (enabled) {
-                    engine.shuffleUpcoming();
-                }
+                engine.shuffleUpcoming();
                 syncWaitingList(session, engine);
                 JsonObject root = new JsonObject();
                 root.addProperty("success", true);
                 root.add("waitList", JsonHelper.waitListToJson(engine.getWaitingList()));
                 out.print(root.toString());
+            } else if ("/api/player/jump".equals(path)) {
+                handleJump(request, session, out);
             } else if ("/api/player/loop".equals(path)) {
                 AudioPlayEngine engine = getOrCreateEngine(session);
                 String mode = request.getParameter("mode");
@@ -211,6 +223,23 @@ public class PlayerServlet extends HttpServlet {
         session.setAttribute(SESSION_WAITING_LIST, engine.getWaitingList());
     }
 
+    private void writeCurrentResponse(PrintWriter out, AudioPlayEngine engine) {
+        Song track = engine.getCurrentSong();
+        JsonObject root = new JsonObject();
+        if (track != null) {
+            root.add("track", JsonHelper.songToJson(track));
+        }
+        root.add("waitList", JsonHelper.waitListToJson(engine.getWaitingList()));
+        if (engine.isRepeatOne()) {
+            root.addProperty("loop", "one");
+        } else if (engine.isRepeatAllEnabled()) {
+            root.addProperty("loop", "all");
+        } else {
+            root.addProperty("loop", "off");
+        }
+        out.print(root.toString());
+    }
+
     private void writeTrackResponse(PrintWriter out, AudioPlayEngine engine, Song track) {
         JsonObject root = new JsonObject();
         if (track != null) {
@@ -236,10 +265,34 @@ public class PlayerServlet extends HttpServlet {
         AudioPlayEngine engine = getOrCreateEngine(session);
         int songId = Integer.parseInt(request.getParameter("songId"));
 
-        boolean removed = engine.getWaitingList().removeById(songId);
+        Song before = engine.getCurrentSong();
+        boolean wasCurrent = before != null && before.getSongId() == songId;
+        boolean removed = engine.removeSong(songId);
+        Song newCurrent = engine.getCurrentSong();
 
         JsonObject root = new JsonObject();
         root.addProperty("success", removed);
+        // Nếu xóa đúng bài đang phát, báo client chuyển sang bài hiện tại mới (hoặc dừng nếu rỗng).
+        root.addProperty("removedCurrent", wasCurrent && removed);
+        if (wasCurrent && removed && newCurrent != null) {
+            root.add("track", JsonHelper.songToJson(newCurrent));
+        }
+        root.add("waitList", JsonHelper.waitListToJson(engine.getWaitingList()));
+        out.print(root.toString());
+    }
+
+    private void handleJump(HttpServletRequest request, HttpSession session, PrintWriter out)
+            throws Exception {
+        AudioPlayEngine engine = getOrCreateEngine(session);
+        int songId = Integer.parseInt(request.getParameter("songId"));
+
+        Song track = engine.jumpTo(songId);
+
+        JsonObject root = new JsonObject();
+        root.addProperty("success", track != null);
+        if (track != null) {
+            root.add("track", JsonHelper.songToJson(track));
+        }
         root.add("waitList", JsonHelper.waitListToJson(engine.getWaitingList()));
         out.print(root.toString());
     }

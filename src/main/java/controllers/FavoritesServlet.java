@@ -50,6 +50,8 @@ public class FavoritesServlet extends HttpServlet {
             root.add("songIds", songIds);
             root.add("songs", JsonHelper.songsToJsonArray(songs));
             root.addProperty("favouriteCount", songs.size());
+            // playlistId của danh sách Favourite (mặc định) để phát đúng hàng chờ này.
+            root.addProperty("playlistId", fav != null ? fav.getPlaylistId() : -1);
             out.print(root.toString());
         } catch (Exception e) {
             e.printStackTrace();

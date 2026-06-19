@@ -53,7 +53,6 @@
 
 <%@ include file="includes/layout-top.jspf" %>
 
-    <div class="page-content">
       <!-- Header -->
       <div class="pl-detail-banner" id="plBanner">
         <div class="pl-detail-icon" id="plIcon">
@@ -87,19 +86,23 @@
       <div class="track-list" id="trackList">
         <div style="color:var(--text3); font-size:.85rem; padding:.5rem">Loading...</div>
       </div>
-    </div>
 
 <%@ include file="includes/layout-bottom.jspf" %>
 
 <script>
-const IS_FAVOURITE = <%= isFavourite %>;
-const PLAYLIST_ID  = '<%= playlistId != null ? playlistId : "" %>';
-let tracks = [];
+// Dùng var (không phải const) để script chạy lại được khi điều hướng SPA nhiều lần.
+var IS_FAVOURITE = <%= isFavourite %>;
+var PLAYLIST_ID  = '<%= playlistId != null ? playlistId : "" %>';
+var FAV_PLAYLIST_ID = 0; // id của playlist Favourite (lấy từ /api/favorites) để phát đúng hàng chờ
+var tracks = [];
 
 async function loadDetail() {
+  // Hàm này là global xuyên SPA; bỏ qua nếu không còn ở trang playlist-detail.
+  if (!document.getElementById('trackList')) return;
   let res;
   if (IS_FAVOURITE) {
     res = await App.API.get('/api/favorites');
+    if (res && res.playlistId) FAV_PLAYLIST_ID = res.playlistId;
   } else {
     res = await App.API.get('/api/playlists/' + PLAYLIST_ID);
     if (res && res.playlist) {
@@ -134,14 +137,13 @@ function renderTracks() {
     const cover = t.coverPath
       ? `<img src="${t.coverPath}" alt="">`
       : `<span style="font-size:1.3rem">${t.emoji || '🎵'}</span>`;
-    const trackJson = JSON.stringify(t).replace(/"/g, '&quot;');
     return `
       <div class="track-item" data-id="${t.songId}"
            draggable="${!IS_FAVOURITE}"
            ondragstart="dragStart(event, ${i})"
            ondragover="dragOver(event)"
            ondrop="drop(event, ${i})"
-           ondblclick="App.playTrack(${trackJson})">
+           ondblclick="playSingle(${t.songId})">
         <span class="track-num">${i + 1}</span>
         <span class="track-play-icon">
           <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -175,22 +177,29 @@ function renderTracks() {
   }).join('');
 }
 
+// id playlist hiện tại (favourite hoặc custom).
+function currentPlaylistId() {
+  return IS_FAVOURITE ? FAV_PLAYLIST_ID : PLAYLIST_ID;
+}
+
+// Nút "Play list": nạp TOÀN BỘ bài trong list vào hàng chờ; nghe hết bài cuối mới nạp thêm.
 function playAll() {
   if (!tracks.length) { App.showToast('No songs to play'); return; }
-  if (IS_FAVOURITE || !PLAYLIST_ID) {
-    App.playTrack(tracks[0]);
-    App.showToast('▶ Playing playlist');
-    return;
-  }
-  App.API.postForm('/api/player/play', {
-    songId: tracks[0].songId,
-    playlistId: PLAYLIST_ID
-  }).then(res => {
+  const pid = currentPlaylistId();
+  if (!pid) { App.playTrack(tracks[0]); App.showToast('▶ Playing playlist'); return; }
+  App.API.postForm('/api/player/play', { songId: tracks[0].songId, playlistId: pid }).then(res => {
     if (res && res.track) {
       App.applyTrack(res.track, res.waitList);
       App.showToast('▶ Playing playlist');
     }
   });
+}
+
+// Bấm một bài lẻ trong list: hàng chờ CHỈ gồm bài đó (giống trang chủ/search),
+// phát hết mới tự nạp thêm.
+function playSingle(songId) {
+  const t = tracks.find(x => x.songId === songId);
+  if (t) App.playTrack(t);
 }
 
 async function removeFav(songId) {
@@ -203,17 +212,23 @@ async function removeFromPlaylist(songId) {
 }
 
 async function deleteCurrent() {
-  if (!confirm('Delete this playlist?')) return;
+  const ok = await App.confirm({
+    title: 'Delete playlist',
+    message: 'Are you sure you want to delete this playlist? This cannot be undone.',
+    okText: 'Delete',
+    danger: true
+  });
+  if (!ok) return;
   const res = await App.API.postForm('/api/playlists/delete', { playlistId: PLAYLIST_ID });
   if (res && res.success) {
     App.showToast('🗑 Playlist deleted');
-    // Sửa lỗi: dùng request.getContextPath() của JSP truyền vào JS
-    window.location = '<%= request.getContextPath() %>/playlist.jsp';
+    // Điều hướng SPA về trang playlist (giữ nhạc đang phát).
+    spaNavigate('<%= request.getContextPath() %>/playlist.jsp');
   }
 }
 
 // --- Drag & drop reorder ---
-let dragIdx = null;
+var dragIdx = null;
 function dragStart(e, i) { dragIdx = i; }
 function dragOver(e) { e.preventDefault(); e.currentTarget.classList.add('drag-over'); }
 function drop(e, targetIdx) {
@@ -226,11 +241,21 @@ function drop(e, targetIdx) {
   const order = tracks.map(t => t.songId);
   App.API.postForm('/api/playlists/reorder', { playlistId: PLAYLIST_ID, order: order.join(',') });
 }
-document.addEventListener('dragend', () => {
+function onDocDragEnd() {
   document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
-});
+}
 
-loadDetail();
+function initPlaylistDetail() {
+  document.addEventListener('dragend', onDocDragEnd);
+  loadDetail();
+}
+
+// Phase 3: gỡ listener dragend toàn cục khi rời trang để tránh tích tụ.
+function cleanupPlaylistDetail() {
+  document.removeEventListener('dragend', onDocDragEnd);
+}
+
+App.Router.register('playlist-detail', { init: initPlaylistDetail, cleanup: cleanupPlaylistDetail });
 </script>
 </body>
 </html>

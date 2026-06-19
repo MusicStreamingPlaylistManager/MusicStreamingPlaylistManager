@@ -36,7 +36,6 @@
 
 <%@ include file="includes/layout-top.jspf" %>
 
-    <div class="page-content">
       <h1 style="font-family:var(--font-display);font-size:1.5rem;font-weight:800;margin-bottom:1rem">Manage Songs</h1>
       <div class="admin-grid">
         <div class="admin-list">
@@ -64,12 +63,11 @@
           </div>
         </div>
       </div>
-    </div>
 
 <%@ include file="includes/layout-bottom.jspf" %>
 
 <script>
-let songs = [];
+var songs = [];
 
 async function loadSongs() {
   const res = await App.API.get('/api/admin/songs');
@@ -156,7 +154,12 @@ async function deleteSong(id) {
   }
 }
 
-loadSongs();
+function initAdmin() {
+  // Trang chỉ admin (server đã chặn redirect non-admin; sidebar cũng chỉ hiện link cho admin).
+  loadSongs();
+}
+
+App.Router.register('admin', { init: initAdmin });
 </script>
 </body>
 </html>

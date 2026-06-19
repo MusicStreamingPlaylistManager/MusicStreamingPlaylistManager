@@ -1,5 +1,6 @@
 <%-- layout-bottom.jspf - Close main + inject player bar --%>
 <%@ page pageEncoding="UTF-8" contentType="text/html;charset=UTF-8" %>
+  </div>
   </main><div id="player-bar">
     <div class="player-left">
       <div class="player-thumb" id="bar-thumb">
@@ -18,7 +19,7 @@
 
     <div class="player-center">
       <div class="player-controls">
-        <button class="p-ctrl" data-ctrl="shuffle" onclick="App.toggleShuffle()" title="Shuffle">
+        <button class="p-ctrl" data-ctrl="shuffle" onclick="App.shuffle()" title="Shuffle upcoming">
           <svg><use href="#ic-shuffle"/></svg>
         </button>
         <button class="p-ctrl" onclick="App.prevTrack()" title="Previous">
@@ -100,11 +101,43 @@
   </div>
 </div>
 
+<!-- Generic Confirm Dialog (App.confirm) -->
+<div class="modal-bg" id="appConfirmModal">
+  <div class="modal">
+    <div class="modal-title" id="appConfirmTitle">Confirm</div>
+    <div class="modal-sub" id="appConfirmMsg" style="color:var(--text2)"></div>
+    <div class="modal-actions">
+      <button class="btn-cancel" id="appConfirmCancel">Cancel</button>
+      <button class="btn-confirm" id="appConfirmOk">OK</button>
+    </div>
+  </div>
+</div>
+
+<!-- Generic Prompt Dialog (App.prompt) -->
+<div class="modal-bg" id="appPromptModal">
+  <div class="modal">
+    <div class="modal-title" id="appPromptTitle">Enter</div>
+    <div class="modal-sub" id="appPromptMsg" style="color:var(--text2)"></div>
+    <input class="modal-input" type="text" id="appPromptInput" maxlength="60">
+    <div class="modal-actions">
+      <button class="btn-cancel" id="appPromptCancel">Cancel</button>
+      <button class="btn-confirm" id="appPromptOk">OK</button>
+    </div>
+  </div>
+</div>
+
+<style>
+  #appConfirmModal .btn-confirm.danger,
+  #appConfirmOk.danger { background: var(--red, #ef4444); }
+  #appConfirmModal .btn-confirm.danger:hover,
+  #appConfirmOk.danger:hover { background: #dc2626; }
+</style>
+
 <div class="toast" id="sw-toast"></div>
 
-<script>window.APP_CONTEXT = '<%= request.getContextPath() %>';</script>
-<script src="<%= request.getContextPath() %>/assets/js/app.js?v=20260618"></script>
-<script>
+<script data-shell="1">window.APP_CONTEXT = '<%= request.getContextPath() %>';</script>
+<script data-shell="1" src="<%= request.getContextPath() %>/assets/js/app.js?v=20260619d"></script>
+<script data-shell="1">
 // Global search (calls SongServlet API)
 async function handleGlobalSearch(val) {
   const overlay = document.getElementById('search-overlay');

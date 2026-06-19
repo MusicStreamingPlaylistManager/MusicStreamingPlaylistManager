@@ -42,8 +42,38 @@ public class AudioPlayEngine {
         }
     }
 
+    /**
+     * Dời con trỏ phát tới một bài đã có sẵn trong hàng chờ (KHÔNG dựng lại hàng chờ).
+     * Dùng khi người dùng bấm một bài trong Wait List.
+     */
+    public Song jumpTo(int songId) {
+        Node node = waitingList.getNodeById(songId);
+        if (node == null) return null;
+        currentTrackPointer = node;
+        return node.data;
+    }
+
+    /**
+     * Xóa một bài khỏi hàng chờ và GIỮ con trỏ phát hợp lệ.
+     * Nếu xóa đúng bài đang phát thì dời con trỏ sang bài kế tiếp (hoặc trước đó,
+     * hoặc null nếu hàng chờ rỗng) để Next/Prev không trỏ vào node đã tách rời.
+     */
+    public boolean removeSong(int songId) {
+        Node node = waitingList.getNodeById(songId);
+        if (node == null) return false;
+
+        if (currentTrackPointer == node) {
+            currentTrackPointer = (node.next != null) ? node.next : node.prev;
+        }
+        return waitingList.removeById(songId);
+    }
+
     public Song nextTrack() {
-        if (currentTrackPointer == null) return null;
+        // Con trỏ null nhưng hàng chờ còn bài (vd: vừa xóa bài đầu đang phát) → phát từ đầu.
+        if (currentTrackPointer == null) {
+            currentTrackPointer = waitingList.getHead();
+            return currentTrackPointer != null ? currentTrackPointer.data : null;
+        }
 
         if (repeatOne) {
             return currentTrackPointer.data;
@@ -97,6 +127,14 @@ public class AudioPlayEngine {
         }
     }
 
+    public boolean isRepeatAllEnabled() {
+        return isRepeatAllEnabled;
+    }
+
+    public boolean isRepeatOne() {
+        return repeatOne;
+    }
+
     public void shuffleUpcoming() {
         if (currentTrackPointer == null || currentTrackPointer.next == null) {
             return;
@@ -143,17 +181,14 @@ public class AudioPlayEngine {
         }
     }
 
+    /**
+     * Khi phát một bài lẻ (trang chủ / search / thể loại / một bài trong playlist),
+     * hàng chờ CHỈ gồm bài đó. Khi phát hết, nextTrack() sẽ tự nạp thêm qua autoAppendSongs()
+     * — đúng như mô tả trong report. songDAO giữ lại cho tương thích chữ ký gọi.
+     */
     public static IndexedDoublyLinkedList buildQuickPlayQueue(Song selected, SongDAO songDAO) throws Exception {
         IndexedDoublyLinkedList list = new IndexedDoublyLinkedList();
         list.append(selected);
-
-        DynamicArrayList similar = songDAO.getSongsByGenre(selected.getGenre(), 11);
-        for (int i = 0; i < similar.size() && list.toSongList().size() < 11; i++) {
-            Song song = similar.get(i);
-            if (!list.contains(song.getSongId())) {
-                list.append(song);
-            }
-        }
         return list;
     }
 }
