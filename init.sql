@@ -6,67 +6,71 @@
 
 -- Rồi chạy đống dưới này
 -- 1. XÓA TOÀN BỘ CÁC BẢNG CŨ (NẾU CÓ) ĐỂ TRÁNH LỖI CONFLICT
-DROP TABLE IF EXISTS Playlist_Songs CASCADE;
-DROP TABLE IF EXISTS Playlists CASCADE;
-DROP TABLE IF EXISTS Songs CASCADE;
-DROP TABLE IF EXISTS Users CASCADE;
+DROP TABLE IF EXISTS "Playlist_Songs" CASCADE;
+DROP TABLE IF EXISTS "Playlists" CASCADE;
+DROP TABLE IF EXISTS "Songs" CASCADE;
+DROP TABLE IF EXISTS "Users" CASCADE;
+
+DROP TABLE IF EXISTS playlist_songs CASCADE;
+DROP TABLE IF EXISTS playlists CASCADE;
+DROP TABLE IF EXISTS songs CASCADE;
+DROP TABLE IF EXISTS users CASCADE;
 
 -- 2. TẠO LẠI CÁC BẢNG THEO ĐÚNG THIẾT KẾ DTO REPORT 2
 
-CREATE TABLE Users (
-    UserID SERIAL PRIMARY KEY,
-    Username VARCHAR(255) UNIQUE NOT NULL,
-    Password VARCHAR(255) NOT NULL,
-    Role VARCHAR(50) NOT NULL CHECK (Role IN ('Admin', 'User')),
-    CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+CREATE TABLE users (
+    userid SERIAL PRIMARY KEY,
+    username VARCHAR(255) UNIQUE NOT NULL,
+    password VARCHAR(255) NOT NULL,
+    role VARCHAR(50) NOT NULL CHECK (role IN ('Admin', 'User')),
+    createdat TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE Songs (
-    SongID SERIAL PRIMARY KEY,
-    Title VARCHAR(255) NOT NULL,
-    Artist VARCHAR(255) NOT NULL,
-    Genre VARCHAR(100) NOT NULL,
-    Duration INT NOT NULL,
-    FilePath TEXT NOT NULL,
-    CoverPath TEXT NOT NULL
+CREATE TABLE songs (
+    songid SERIAL PRIMARY KEY,
+    title VARCHAR(255) NOT NULL,
+    artist VARCHAR(255) NOT NULL,
+    genre VARCHAR(100) NOT NULL,
+    duration INT NOT NULL,
+    filepath TEXT NOT NULL,
+    coverpath TEXT NOT NULL
 );
 
-CREATE TABLE Playlists (
-    PlaylistID SERIAL PRIMARY KEY,
-    UserID INT NOT NULL,
-    Name VARCHAR(255) NOT NULL,
-    Type VARCHAR(50) NOT NULL CHECK (Type IN ('Favourite', 'Waiting')),
-    IsDefault BOOLEAN DEFAULT FALSE, -- Đã bổ sung trường isDefault khớp với Playlist DTO
-    CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (UserID) REFERENCES Users(UserID) ON DELETE CASCADE
+CREATE TABLE playlists (
+    playlistid SERIAL PRIMARY KEY,
+    userid INT NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    type VARCHAR(50) NOT NULL CHECK (type IN ('Favourite', 'Waiting')),
+    isdefault BOOLEAN DEFAULT FALSE,
+    createdat TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (userid) REFERENCES users(userid) ON DELETE CASCADE
 );
 
-CREATE TABLE Playlist_Songs (
-    PlaylistID INT NOT NULL,
-    SongID INT NOT NULL,
-    OrderIndex INT NOT NULL,
-    PRIMARY KEY (PlaylistID, SongID),
-    FOREIGN KEY (PlaylistID) REFERENCES Playlists(PlaylistID) ON DELETE CASCADE,
-    FOREIGN KEY (SongID) REFERENCES Songs(SongID) ON DELETE CASCADE
+CREATE TABLE playlist_songs (
+    playlistid INT NOT NULL,
+    songid INT NOT NULL,
+    orderindex INT NOT NULL,
+    PRIMARY KEY (playlistid, songid),
+    FOREIGN KEY (playlistid) REFERENCES playlists(playlistid) ON DELETE CASCADE,
+    FOREIGN KEY (songid) REFERENCES songs(songid) ON DELETE CASCADE
 );
 
 -- 3. CHÈN DỮ LIỆU MẪU (DUMMY DATA)
 
-INSERT INTO Users (Username, Password, Role) VALUES
+INSERT INTO users (username, password, role) VALUES
 ('admin_phuc', '240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9', 'Admin'),
 ('user_an', '8d969eef6ecad3c29a3a629280e686cf0c3f5d5d5a86aff3ca12020c923adc6ca6', 'User'),
 ('user_khoi', '8d969eef6ecad3c29a3a629280e686cf0c3f5d5d5a86aff3ca12020c923adc6ca6', 'User');
--- Passwords above are SHA-256 hashes: admin123 / 123456
 
 -- Chèn Playlists mẫu
-INSERT INTO Playlists (UserID, Name, Type, IsDefault) VALUES
+INSERT INTO playlists (userid, name, type, isdefault) VALUES
 (2, 'Nhạc Trẻ Sôi Động', 'Favourite', FALSE),
 (2, 'Danh Sách Chờ Tạm Thời', 'Waiting', FALSE),
 (3, 'Chill Cuối Tuần', 'Favourite', FALSE),
-(2, 'Liked Songs', 'Favourite', TRUE); -- Thêm 1 playlist mặc định (isDefault = true) để test tính năng thả tim
+(2, 'Liked Songs', 'Favourite', TRUE);
 
 -- ĐÃ CẬP NHẬT ĐƯỜNG DẪN FILE NHẠC THỰC TẾ THEO THƯ MỤC CỦA BẠN
-INSERT INTO Songs (Title, Artist, Genre, Duration, FilePath, CoverPath) VALUES
+INSERT INTO songs (title, artist, genre, duration, filepath, coverpath) VALUES
 	('Billie Bossa Nova', 'Billie Eilish', 'ballad', 200, '/assets/Songs/ballad/Billie Bossa Nova.mp3', ''),
 	('Dancing With Your Ghost', 'Sasha Sloan', 'ballad', 200, '/assets/Songs/ballad/Dancing With Your Ghost.mp3', ''),
 	('Easy On Me', 'Adele', 'ballad', 200, '/assets/Songs/ballad/Easy On Me.mp3', ''),

@@ -15,15 +15,38 @@ import java.sql.SQLException;
  */
 public class DBUtils {
 
-    // Cấu hình thông tin kết nối PostgreSQL Local
-    private static final String HOST = "localhost";
-    private static final String PORT = "5432"; // Cổng mặc định khi cài PostgreSQL
-    private static final String DBNAME = "music_streaming_db"; // Đã cập nhật khớp với file init.sql
-    private static final String USER = "postgres"; // Username mặc định của PostgreSQL
-    private static final String PASSWORD = "123"; //
+    // ==========================================
+    // CẤU HÌNH KẾT NỐI SUPABASE (ONLINE)
+    // ==========================================
+    // Bạn lấy thông tin này trên Supabase: Project Settings -> Database ->
+    // Connection string -> JDBC
+    // Lưu ý: Đổi URL, USER, PASSWORD theo đúng project của bạn
+    private static final String HOST = "aws-1-ap-southeast-2.pooler.supabase.com"; // Thay bằng Host của bạn (thường có
+                                                                                   // chữ
+    // pooler)
+    private static final String PORT = "6543"; // Dùng cổng 6543 để hỗ trợ IPv4 (Connection Pooling)
+    private static final String DBNAME = "postgres"; // Mặc định của Supabase luôn là postgres
+    private static final String USER = "postgres.justszxkwcdqcmswwvst"; // Thay bằng User của bạn
+    private static final String PASSWORD = "J2PUdVf6cG7DWX1F"; // Mật khẩu lúc bạn tạo project Supabase
 
-    // Chuỗi kết nối JDBC cho PostgreSQL Local
-    private static final String URL = "jdbc:postgresql://" + HOST + ":" + PORT + "/" + DBNAME;
+    // Chuỗi kết nối JDBC cho Supabase
+    // Cần thêm ?sslmode=require vì Supabase yêu cầu mã hóa SSL
+    // Trong JDBC, chuỗi URL bắt buộc phải bắt đầu bằng "jdbc:postgresql://"
+    // Supabase (khi dùng qua pooler) yêu cầu thêm prepareThreshold=0
+    private static final String URL = "jdbc:postgresql://" + HOST + ":" + PORT + "/" + DBNAME
+            + "?sslmode=require&prepareThreshold=0";
+
+    // ==========================================
+    // CẤU HÌNH KẾT NỐI POSTGRESQL LOCAL (OFFLINE)
+    // (Bôi đen Ctrl + / để mở khóa khi cần dùng lại Local)
+    // ==========================================
+    // private static final String HOST = "localhost";
+    // private static final String PORT = "5432";
+    // private static final String DBNAME = "music_streaming_db";
+    // private static final String USER = "postgres";
+    // private static final String PASSWORD = "123";
+    // private static final String URL = "jdbc:postgresql://" + HOST + ":" + PORT +
+    // "/" + DBNAME;
 
     /**
      * Mở kết nối tới Database Local
