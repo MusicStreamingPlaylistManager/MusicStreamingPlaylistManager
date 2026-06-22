@@ -105,6 +105,7 @@ async function searchPageGlobalSearch(val) {
   }
   title.textContent = `Results for "${val}" (${res.songs.length})`;
   list.innerHTML = res.songs.map((t, i) => renderTrackItem(t, i + 1)).join('');
+  App.fillMissingCovers();
 }
 
 async function filterGenre(genre, pushState = true) {
@@ -126,6 +127,7 @@ async function filterGenre(genre, pushState = true) {
   }
   title.textContent = `Genre: ${genre} (${res.songs.length})`;
   list.innerHTML = res.songs.map((t, i) => renderTrackItem(t, i + 1)).join('');
+  App.fillMissingCovers();
 }
 
 function clearSearch(pushState = true) {

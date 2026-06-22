@@ -286,7 +286,7 @@ window.renderWaitList = function(list) {
         </button>
       </div>`;
   }).join('');
-
+  App.fillMissingCovers();
   initDragAndDrop();
 };
 

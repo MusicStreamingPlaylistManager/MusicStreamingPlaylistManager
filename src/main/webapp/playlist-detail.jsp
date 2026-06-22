@@ -175,6 +175,7 @@ function renderTracks() {
         </div>
       </div>`;
   }).join('');
+  App.fillMissingCovers();
 }
 
 // id playlist hiện tại (favourite hoặc custom).

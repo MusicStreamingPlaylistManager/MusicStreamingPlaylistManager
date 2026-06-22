@@ -219,6 +219,7 @@
                     <div class="pick-title">${t.title}</div>
                     <div class="pick-artist">${t.artist}</div>
                     </div>`).join('');
+            App.fillMissingCovers();
           } else if (songs && songs.error) {
             picksGrid.innerHTML = '<p style="color:var(--text3);font-size:.85rem">Không tải được nhạc: ' + songs.error + '. Kiểm tra PostgreSQL và file init.sql.</p>';
           } else {
@@ -230,11 +231,13 @@
           const recentList = document.getElementById('recentList');
           if (history && history.songs && history.songs.length) {
             recentList.innerHTML = history.songs.map((t, i) => renderTrackItem(t, i + 1)).join('');
+            App.fillMissingCovers();
           } else {
             // Fallback
             const all = await App.API.get('/api/songs?limit=6');
             if (all && Array.isArray(all) && all.length) {
               recentList.innerHTML = all.map((t, i) => renderTrackItem(t, i + 1)).join('');
+              App.fillMissingCovers();
             } else {
               recentList.innerHTML = '<p style="color:var(--text3);font-size:.85rem;padding:.5rem">Play a song to see your history here.</p>';
             }
