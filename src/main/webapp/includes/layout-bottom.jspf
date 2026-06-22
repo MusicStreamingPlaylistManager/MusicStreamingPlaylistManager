@@ -147,6 +147,8 @@ async function handleGlobalSearch(val) {
   const res = await App.API.get('/api/songs/search?q=' + encodeURIComponent(val));
   if (!res || !res.songs) { list.innerHTML = '<p style="color:var(--text3);font-size:.85rem">No results found.</p>'; return; }
   list.innerHTML = res.songs.map((t, i) => renderTrackItem(t, i + 1)).join('');
+  App.fillMissingCovers();
+  
 }
 
 // Hide search overlay on click outside
