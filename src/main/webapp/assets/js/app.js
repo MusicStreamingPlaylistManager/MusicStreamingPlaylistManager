@@ -474,31 +474,50 @@ const App = (() => {
   function _updatePlayerUI() {
     const t = state.currentTrack;
     if (!t) return;
-    // Thumb
+
+    // Player bar thumb
     document.querySelectorAll('.player-thumb').forEach(el => {
-      el.innerHTML = t.coverPath
-        ? `<img src="${t.coverPath}" alt="">`
-        : `<span style="font-size:1.5rem">${t.emoji || '🎵'}</span>`;
+        el.innerHTML = t.coverPath
+            ? `<img src="${t.coverPath}" alt="">`
+            : `<span style="font-size:1.5rem">${t.emoji || '🎵'}</span>`;
     });
+
     document.querySelectorAll('.player-name').forEach(el => el.textContent = t.title);
     document.querySelectorAll('.player-artist').forEach(el => el.textContent = t.artist);
-    // Now playing page specific
+
+    // Now playing page cover (ảnh lớn)
     const npCover = document.getElementById('np-cover');
     if (npCover) {
-      npCover.innerHTML = t.coverPath
-        ? `<img src="${t.coverPath}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:20px">`
-        : `<span style="font-size:5rem">${t.emoji || '🎵'}</span>`;
+        if (t.coverPath) {
+            npCover.innerHTML = `<img src="${t.coverPath}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:20px">`;
+        } else {
+            npCover.innerHTML = `<span style="font-size:5rem">${t.emoji || '🎵'}</span>`;
+            // Fill ảnh lớn cho np-cover
+            _fetchItunesCover(t.title, t.artist).then(function(url) {
+                if (url && document.getElementById('np-cover')) {
+                    document.getElementById('np-cover').innerHTML =
+                        `<img src="${url}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:20px">`;
+                }
+            });
+        }
     }
+
+    // Fill ảnh cho player bar thumb + wait list + picks
+    if (!t.coverPath) {
+        setTimeout(function() { fillMissingCovers(); }, 0);
+    }
+
     if (document.getElementById('np-title')) document.getElementById('np-title').textContent = t.title;
     if (document.getElementById('np-artist')) document.getElementById('np-artist').textContent = t.artist;
+
     const heart = document.getElementById('bar-heart');
     if (heart) {
-      heart.dataset.songId = t.songId;
-      heart.classList.toggle('liked', state.favorites.has(t.songId));
+        heart.dataset.songId = t.songId;
+        heart.classList.toggle('liked', state.favorites.has(t.songId));
     }
     _updatePlayBtns();
     _updateProgressUI();
-  }
+    }
 
   function _updatePlayBtns() {
     const icon = state.isPlaying
@@ -915,6 +934,87 @@ const App = (() => {
       </div>
     </div>`;
   }
+  // ===== ITUNES COVER ART =====
+const _itunesCache = {};
+
+async function _fetchItunesCover(title, artist) {
+    const key = artist + '|' + title;
+    if (_itunesCache[key] !== undefined) return _itunesCache[key];
+
+    if (!artist || artist.toLowerCase().includes('unknown')) {
+        _itunesCache[key] = null;
+        return null;
+    }
+
+    try {
+        const q = encodeURIComponent(artist + ' ' + title);
+        const res = await fetch(
+            `https://itunes.apple.com/search?term=${q}&entity=song&limit=1`,
+            { cache: 'force-cache' }
+        );
+        const data = await res.json();
+        const url = (data.results && data.results[0] && data.results[0].artworkUrl100)
+        ? data.results[0].artworkUrl100.replace('100x100bb', '500x500bb')
+        : null;
+        _itunesCache[key] = url;
+        return url;
+    } catch (err) {
+        _itunesCache[key] = null;
+        return null;
+    }
+}
+
+async function fillMissingCovers() {
+    // 1. Track list (.track-thumb)
+    document.querySelectorAll('.track-thumb').forEach(async function(thumb) {
+        if (thumb.querySelector('img')) return;
+        const item = thumb.closest('.track-item');
+        if (!item) return;
+        const titleEl = item.querySelector('.t-name');
+        const artistEl = item.querySelector('.t-artist');
+        if (!titleEl || !artistEl) return;
+        const url = await _fetchItunesCover(titleEl.textContent, artistEl.textContent);
+        if (url) thumb.innerHTML = '<img src="' + url + '" alt="">';
+    });
+
+    // 2. Pick cards (.pick-cover)
+    document.querySelectorAll('.pick-cover').forEach(async function(cover) {
+        if (cover.querySelector('img')) return;
+        const card = cover.closest('.pick-card');
+        if (!card) return;
+        const titleEl = card.querySelector('.pick-title');
+        const artistEl = card.querySelector('.pick-artist');
+        if (!titleEl || !artistEl) return;
+        const url = await _fetchItunesCover(titleEl.textContent, artistEl.textContent);
+        if (url) {
+            const playBtn = cover.querySelector('.pick-play');
+            cover.innerHTML = '<img src="' + url + '" alt="">';
+            if (playBtn) cover.appendChild(playBtn);
+        }
+    });
+
+    // 3. Wait list (.wl-thumb) — nowplaying page
+    document.querySelectorAll('.wl-thumb').forEach(async function(thumb) {
+        if (thumb.querySelector('img')) return;
+        const item = thumb.closest('.wl-track');
+        if (!item) return;
+        const titleEl = item.querySelector('.wl-name');
+        const artistEl = item.querySelector('.wl-artist');
+        if (!titleEl || !artistEl) return;
+        const url = await _fetchItunesCover(titleEl.textContent, artistEl.textContent);
+        if (url) thumb.innerHTML = '<img src="' + url + '" alt="">';
+    });
+
+    // 4. Player bar thumb
+    const barThumb = document.getElementById('bar-thumb');
+    if (barThumb && !barThumb.querySelector('img')) {
+        const track = App.getState().currentTrack;
+        if (track && track.title && track.artist) {
+            const url = await _fetchItunesCover(track.title, track.artist);
+            if (url) barThumb.innerHTML = '<img src="' + url + '" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:8px">';
+        }
+    }
+}
 
   return {
     init, state, API, Router,
@@ -927,6 +1027,7 @@ const App = (() => {
     confirmCreatePlaylistFromModal, syncHeartButtons,
     getState: () => state,
     renderTrackItem,
+    fillMissingCovers,
   };
 })();
 
