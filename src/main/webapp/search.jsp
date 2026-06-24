@@ -62,9 +62,6 @@
           <div class="genre-card" style="background:#2e1025;color:#f472b6" onclick="filterGenre('barbie playlist')">
             <span class="g-icon">👸</span><span class="g-name">Barbie</span>
           </div>
-          <div class="genre-card" style="background:#001a1a;color:#67e8f9" onclick="filterGenre('piano')">
-            <span class="g-icon">🎹</span><span class="g-name">Piano</span>
-          </div>
           <div class="genre-card" style="background:#1a001a;color:#fca5a5" onclick="filterGenre('pop')">
             <span class="g-icon">🎶</span><span class="g-name">Pop</span>
           </div>

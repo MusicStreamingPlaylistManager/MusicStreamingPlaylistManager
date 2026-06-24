@@ -33,18 +33,17 @@ public class UserDAO {
         }
     }
 
-    public int register(String username, String password, String role) throws Exception {
+    public int register(String username, String password) throws Exception {
         if (usernameExists(username)) {
             return -1;
         }
 
-        String sql = "INSERT INTO Users (Username, Password, Role) VALUES (?, ?, ?)";
+        String sql = "INSERT INTO Users (Username, Password) VALUES (?, ?)";
         try (Connection conn = DBUtils.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
 
             ps.setString(1, username);
             ps.setString(2, PasswordUtils.hash(password));
-            ps.setString(3, role);
 
             int affected = ps.executeUpdate();
             if (affected == 0) return -1;
@@ -108,7 +107,6 @@ public class UserDAO {
             rs.getInt("UserID"),
             rs.getString("Username"),
             rs.getString("Password"),
-            rs.getString("Role"),
             rs.getTimestamp("CreatedAt")
         );
     }

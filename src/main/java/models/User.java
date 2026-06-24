@@ -6,17 +6,15 @@ public class User {
     private int userId;
     private String username;
     private String password;
-    private String role;
     private Timestamp createdAt;
 
     public User() {
     }
 
-    public User(int userId, String username, String password, String role, Timestamp createdAt) {
+    public User(int userId, String username, String password, Timestamp createdAt) {
         this.userId = userId;
         this.username = username;
         this.password = password;
-        this.role = role;
         this.createdAt = createdAt;
     }
 
@@ -42,14 +40,6 @@ public class User {
 
     public void setPassword(String password) {
         this.password = password;
-    }
-
-    public String getRole() {
-        return role;
-    }
-
-    public void setRole(String role) {
-        this.role = role;
     }
 
     public Timestamp getCreatedAt() {
