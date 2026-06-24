@@ -34,6 +34,13 @@ public class AudioPlayEngine {
         return playbackHistory;
     }
 
+    // Cho phép giữ lại lịch sử nghe khi tạo engine mới (phát bài/queue khác trong cùng phiên).
+    public void setPlaybackHistory(HistoryStack history) {
+        if (history != null) {
+            this.playbackHistory = history;
+        }
+    }
+
     public void playFromSong(Song song) {
         if (song == null) return;
         Node node = waitingList.getNodeById(song.getSongId());
@@ -162,6 +169,10 @@ public class AudioPlayEngine {
             temp = temp.next;
             index++;
         }
+
+        // Quan trọng: vì đã ghi đè data của các node, phải dựng lại HashMap id→Node,
+        // nếu không jumpTo/removeById/contains sẽ trỏ sai node sau khi shuffle.
+        waitingList.rebuildIndex();
     }
 
     public void autoAppendSongs() {

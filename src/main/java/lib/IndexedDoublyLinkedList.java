@@ -93,6 +93,17 @@ public class IndexedDoublyLinkedList {
         return true;
     }
 
+    // Dựng lại bảng băm id→Node từ dữ liệu hiện tại của các node.
+    // Cần gọi sau khi data của node bị ghi đè (vd: sau Shuffle) để index luôn nhất quán.
+    public void rebuildIndex() {
+        songIndex.clear();
+        Node current = head;
+        while (current != null) {
+            songIndex.put(current.data.getSongId(), current);
+            current = current.next;
+        }
+    }
+
     public Node getHead() { return this.head; }
     public Node getTail() { return this.tail; }
 

@@ -170,7 +170,17 @@ public class PlayerServlet extends HttpServlet {
             inMemoryWaiting = true;
         }
 
+        AudioPlayEngine previous = (AudioPlayEngine) session.getAttribute(SESSION_ENGINE);
         AudioPlayEngine engine = new AudioPlayEngine(waitingList);
+        // Giữ lịch sử nghe xuyên suốt phiên: không reset khi phát bài/queue mới.
+        if (previous != null) {
+            engine.setPlaybackHistory(previous.getPlaybackHistory());
+            // Ghi nhận bài đang phát trước đó vào lịch sử (vì người dùng chuyển sang bài khác).
+            Song prevPlaying = previous.getCurrentSong();
+            if (prevPlaying != null && prevPlaying.getSongId() != song.getSongId()) {
+                engine.getPlaybackHistory().push(prevPlaying);
+            }
+        }
         engine.playFromSong(song);
         session.setAttribute(SESSION_ENGINE, engine);
         session.setAttribute(SESSION_WAITING_LIST, waitingList);

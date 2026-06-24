@@ -226,21 +226,15 @@
             picksGrid.innerHTML = '<p style="color:var(--text3);font-size:.85rem">Không có bài hát trong database. Hãy chạy init.sql trong pgAdmin.</p>';
           }
 
-          // Load recently played
+          // Load recently played (chỉ lấy từ lịch sử nghe trong RAM của phiên hiện tại).
+          // Không fallback sang danh sách thư viện — sau khi logout, lịch sử rỗng thì hiện thông báo trống.
           const history = await App.API.get('/api/player/history');
           const recentList = document.getElementById('recentList');
           if (history && history.songs && history.songs.length) {
             recentList.innerHTML = history.songs.map((t, i) => renderTrackItem(t, i + 1)).join('');
             App.fillMissingCovers();
           } else {
-            // Fallback
-            const all = await App.API.get('/api/songs?limit=6');
-            if (all && Array.isArray(all) && all.length) {
-              recentList.innerHTML = all.map((t, i) => renderTrackItem(t, i + 1)).join('');
-              App.fillMissingCovers();
-            } else {
-              recentList.innerHTML = '<p style="color:var(--text3);font-size:.85rem;padding:.5rem">Play a song to see your history here.</p>';
-            }
+            recentList.innerHTML = '<p style="color:var(--text3);font-size:.85rem;padding:.5rem">Play a song to see your history here.</p>';
           }
         }
 

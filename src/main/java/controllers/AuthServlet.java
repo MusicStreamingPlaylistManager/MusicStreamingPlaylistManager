@@ -51,8 +51,7 @@ public class AuthServlet extends HttpServlet {
                     session.setAttribute("user", user);
                     session.setAttribute("userId", user.getUserId());
                     session.setAttribute("username", user.getUsername());
-                    session.setAttribute("role", user.getRole());
-                    
+
                     response.sendRedirect(request.getContextPath() + "/home.jsp");
                 } else {
                     session.setAttribute("loginError", "Sai tên đăng nhập hoặc mật khẩu!");
@@ -63,7 +62,7 @@ public class AuthServlet extends HttpServlet {
                 String username = request.getParameter("username");
                 String password = request.getParameter("password");
                 // Mặc định người dùng đăng ký mới sẽ có quyền 'User'
-                int newUserId = userDAO.register(username, password, "User");
+                int newUserId = userDAO.register(username, password);
 
                 if (newUserId > 0) {
                     PlaylistDAO playlistDAO = new PlaylistDAO();
@@ -73,8 +72,7 @@ public class AuthServlet extends HttpServlet {
                     session.setAttribute("user", newUser);
                     session.setAttribute("userId", newUser.getUserId());
                     session.setAttribute("username", newUser.getUsername());
-                    session.setAttribute("role", newUser.getRole());
-                    
+
                     response.sendRedirect(request.getContextPath() + "/home.jsp");
                 } else {
                     session.setAttribute("registerError", "Tên đăng nhập đã tồn tại!");

@@ -713,7 +713,6 @@ const App = (() => {
     'playlist-detail.jsp': 'playlist-detail',
     'nowplaying.jsp': 'nowplaying',
     'profile.jsp': 'profile',
-    'admin-songs.jsp': 'admin',
   };
 
   const Router = {

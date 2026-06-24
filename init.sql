@@ -22,7 +22,6 @@ CREATE TABLE users (
     userid SERIAL PRIMARY KEY,
     username VARCHAR(255) UNIQUE NOT NULL,
     password VARCHAR(255) NOT NULL,
-    role VARCHAR(50) NOT NULL CHECK (role IN ('Admin', 'User')),
     createdat TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -33,7 +32,7 @@ CREATE TABLE songs (
     genre VARCHAR(100) NOT NULL,
     duration INT NOT NULL,
     filepath TEXT NOT NULL,
-    coverpath TEXT NOT NULL
+    coverpath TEXT
 );
 
 CREATE TABLE playlists (
@@ -57,10 +56,10 @@ CREATE TABLE playlist_songs (
 
 -- 3. CHÈN DỮ LIỆU MẪU (DUMMY DATA)
 
-INSERT INTO users (username, password, role) VALUES
-('admin_phuc', '240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9', 'Admin'),
-('user_an', '8d969eef6ecad3c29a3a629280e686cf0c3f5d5d5a86aff3ca12020c923adc6ca6', 'User'),
-('user_khoi', '8d969eef6ecad3c29a3a629280e686cf0c3f5d5d5a86aff3ca12020c923adc6ca6', 'User');
+INSERT INTO users (username, password) VALUES
+('user_phuc', '240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9'),
+('user_an', '8d969eef6ecad3c29a3a629280e686cf0c3f5d5d5a86aff3ca12020c923adc6ca6'),
+('user_khoi', '8d969eef6ecad3c29a3a629280e686cf0c3f5d5d5a86aff3ca12020c923adc6ca6');
 
 -- Chèn Playlists mẫu
 INSERT INTO playlists (userid, name, type, isdefault) VALUES
@@ -94,18 +93,6 @@ INSERT INTO Songs (Title, Artist, Genre, Duration, FilePath, CoverPath) VALUES
 	('Only A Breath Away', 'Barbie', 'barbie playlist', 200, '/assets/Songs/barbie playlist/Only A Breath Away.mp3', NULL),
 	('To Be A Princess / To Be A Popstar', 'Barbie', 'barbie playlist', 209, '/assets/Songs/barbie playlist/To Be A Princess _ To Be A Popstar.mp3', NULL),
 	('You Can Tell She''S A Princess', 'Barbie', 'barbie playlist', 179, '/assets/Songs/barbie playlist/You Can Tell She''S A Princess.mp3', NULL),
-	-- PIANO (11 bài)
-	('Dance Of The Sugar Plum Fairy', 'Pyotr Ilyich Tchaikovsky', 'piano', 201, '/assets/Songs/piano/23843807-dance-of-the-sugar-plum-fairy-pyotr-ilyich-tchaikovsky-201s-11937.mp3', NULL),
-	('Fur Elise', 'Beethoven', 'piano', 345, '/assets/Songs/piano/clavier-music-beethoven-fur-elise-relaxing-classical-piano-268551.mp3', NULL),
-	('Waltz In A Minor', 'Chopin', 'piano', 308, '/assets/Songs/piano/clavier-music-waltz-in-a-minor-chopin-268549.mp3', NULL),
-	('Calm Soft', 'Unknown Artist', 'piano', 160, '/assets/Songs/piano/freemusicforvideo-calm-soft-446641.mp3', NULL),
-	('Happiness In Music', 'Unknown Artist', 'piano', 520, '/assets/Songs/piano/happinessinmusic-music-free-calm-459744.mp3', NULL),
-	('Ding Dong Merrily On High', 'Unknown Artist', 'piano', 216, '/assets/Songs/piano/music_for_video-ding-dong-merrily-on-high-christmas-piano-background-music-12204.mp3', NULL),
-	('Go Tell It On The Mountain', 'Unknown Artist', 'piano', 269, '/assets/Songs/piano/music_for_video-go-tell-it-on-the-mountain-christmas-piano-background-music-12207.mp3', NULL),
-	('Sad Piano', 'Unknown Artist', 'piano', 232, '/assets/Songs/piano/music_for_video-sad-piano-background-music-for-videos-7573.mp3', NULL),
-	('Silent Night', 'Unknown Artist', 'piano', 162, '/assets/Songs/piano/music_for_video-silent-night-piano-version-christmas-background-music-12457.mp3', NULL),
-	('Lacrimosa Requiem', 'Mozart', 'piano', 861, '/assets/Songs/piano/saturn-3-music-mozart-lacrimosa-requiem-piano-version-411229.mp3', NULL),
-	('Ambient Piano', 'Unknown Artist', 'piano', 170, '/assets/Songs/piano/tunetank-ambient-piano-music-349141.mp3', NULL),
 	-- POP (11 bài)
 	('Baby', 'Justin Bieber', 'pop', 214, '/assets/Songs/pop/Baby.mp3', NULL),
 	('Beauty And A Beat', 'Justin Bieber', 'pop', 227, '/assets/Songs/pop/Beauty And A Beat.mp3', NULL),
