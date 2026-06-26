@@ -755,3 +755,92 @@ body.dark .theme-toggle::after { transform: translateX(20px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 .page-content { animation: fadeUp 0.22s ease; }
+
+/* ============================================================
+   RESPONSIVE — ĐIỆN THOẠI / TABLET
+   Sidebar -> thanh điều hướng cố định ở đáy; player-bar -> mini player.
+   ============================================================ */
+@media (max-width: 768px) {
+  /* App 1 cột; chừa 56px ở đáy cho bottom nav cố định */
+  #app {
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr auto;
+    height: calc(100vh - 56px);
+    height: calc(100dvh - 56px); /* dvh: tránh thanh địa chỉ mobile che nội dung */
+  }
+
+  /* Sidebar -> bottom navigation (hàng icon ngang) */
+  #sidebar {
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    height: 56px;
+    flex-direction: row;
+    align-items: stretch;
+    padding: 0;
+    border-right: none;
+    border-top: 1px solid var(--border);
+    overflow: visible;
+    z-index: 60;
+  }
+  #sidebar .logo,
+  #sidebar .nav-label { display: none; }
+  /* display:contents làm các nav-item phẳng vào hàng ngang của sidebar */
+  #sidebar .nav-section { display: contents; margin: 0; }
+  #sidebar .sidebar-bottom { display: contents; margin: 0; padding: 0; border-top: none; }
+  #sidebar .nav-item {
+    flex: 1;
+    flex-direction: column;
+    justify-content: center;
+    gap: 3px;
+    padding: 6px 2px;
+    font-size: 10px;
+    line-height: 1.1;
+    text-align: center;
+    border-left: none;
+    white-space: nowrap;
+  }
+  #sidebar .nav-item svg { width: 20px; height: 20px; }
+  #sidebar .nav-item.active { background: transparent; }
+
+  /* Main chiếm toàn bộ chiều ngang */
+  #main { grid-column: 1; grid-row: 1; }
+  .page-content { padding: 1rem; }
+
+  /* Topbar gọn lại */
+  #topbar { padding: 0.6rem 1rem; gap: 0.6rem; }
+  .search-wrap { max-width: none; }
+  .search-bar { padding: 0.5rem 0.9rem; }
+
+  /* Player bar -> mini player nằm ngay trên bottom nav */
+  #player-bar {
+    grid-column: 1;
+    grid-template-columns: 1fr auto;
+    padding: 6px 0.6rem;
+    gap: 0.5rem;
+    min-height: 60px;
+  }
+  .player-progress { display: none; } /* mini player: ẩn thanh tiến trình (dùng trang Now Playing) */
+  .player-right { display: none; }    /* ẩn âm lượng trên mobile */
+  .player-heart { display: none; }
+  .player-center { gap: 4px; }
+  .player-controls { gap: 14px; }
+
+  /* Search overlay dùng inline style left:260px -> cần !important để đè */
+  #search-overlay {
+    left: 0 !important;
+    right: 0 !important;
+    top: 54px !important;
+    padding: 0.75rem 1rem !important;
+  }
+
+  /* Modal vừa với màn hình nhỏ */
+  .modal { width: min(420px, calc(100vw - 32px)); padding: 1.5rem; }
+}
+
+@media (max-width: 480px) {
+  .page-content { padding: 0.75rem; }
+  #topbar { padding: 0.5rem 0.75rem; }
+  .player-controls { gap: 10px; }
+  .player-center .p-ctrl svg { width: 18px; height: 18px; }
+  .player-name { font-size: 0.8rem; }
+}
