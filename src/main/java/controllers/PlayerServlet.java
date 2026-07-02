@@ -1,0 +1,323 @@
+package controllers;
+
+import com.google.gson.JsonObject;
+import java.io.IOException;
+import java.io.PrintWriter;
+import javax.servlet.ServletException;
+import javax.servlet.annotation.WebServlet;
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpSession;
+import lib.DynamicArrayList;
+import lib.IndexedDoublyLinkedList;
+import models.PlaylistDAO;
+import models.Song;
+import models.SongDAO;
+import utils.JsonHelper;
+
+@WebServlet(name = "PlayerServlet", urlPatterns = {
+    "/api/player/play",
+    "/api/player/next",
+    "/api/player/prev",
+    "/api/player/shuffle",
+    "/api/player/loop",
+    "/api/player/history",
+    "/api/player/waitlist",
+    "/api/player/save-waiting",
+    "/api/player/remove",
+    "/api/player/reorder",
+    "/api/player/jump",
+    "/api/player/current"
+})
+public class PlayerServlet extends HttpServlet {
+
+    public static final String SESSION_ENGINE = "playEngine";
+    public static final String SESSION_WAITING_LIST = "sessionWaitingList";
+
+    private final SongDAO songDAO = new SongDAO();
+    private final PlaylistDAO playlistDAO = new PlaylistDAO();
+
+    @Override
+    protected void doGet(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+        if (!isLoggedIn(request)) {
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            return;
+        }
+
+        response.setContentType("application/json");
+        response.setCharacterEncoding("UTF-8");
+        PrintWriter out = response.getWriter();
+        String path = request.getServletPath();
+        HttpSession session = request.getSession();
+
+        try {
+            if ("/api/player/current".equals(path)) {
+                AudioPlayEngine currentEngine = (AudioPlayEngine) session.getAttribute(SESSION_ENGINE);
+                if (currentEngine == null) {
+                    out.print("{}");
+                } else {
+                    writeCurrentResponse(out, currentEngine);
+                }
+                return;
+            }
+
+            AudioPlayEngine engine = getOrCreateEngine(session);
+
+            if ("/api/player/next".equals(path)) {
+                Song track = engine.nextTrack();
+                writeTrackResponse(out, engine, track);
+            } else if ("/api/player/prev".equals(path)) {
+                Song track = engine.previousTrack();
+                writeTrackResponse(out, engine, track);
+            } else if ("/api/player/history".equals(path)) {
+                JsonObject root = new JsonObject();
+                root.add("songs", JsonHelper.songsToJsonArray(engine.getPlaybackHistory().toList()));
+                out.print(root.toString());
+            } else if ("/api/player/waitlist".equals(path)) {
+                JsonObject root = new JsonObject();
+                root.add("waitList", JsonHelper.waitListToJson(engine.getWaitingList()));
+                out.print(root.toString());
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+            out.print("{\"error\":\"" + e.getMessage() + "\"}");
+        } finally {
+            out.flush();
+        }
+    }
+
+    @Override
+    protected void doPost(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+        if (!isLoggedIn(request)) {
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            return;
+        }
+
+        request.setCharacterEncoding("UTF-8");
+        response.setContentType("application/json");
+        response.setCharacterEncoding("UTF-8");
+        PrintWriter out = response.getWriter();
+        String path = request.getServletPath();
+        HttpSession session = request.getSession();
+
+        try {
+            if ("/api/player/play".equals(path)) {
+                handlePlay(request, session, out);
+            } else if ("/api/player/shuffle".equals(path)) {
+                // Shuffle là hành động một-lần: mỗi lần bấm trộn lại các bài SẮP TỚI.
+                AudioPlayEngine engine = getOrCreateEngine(session);
+                engine.shuffleUpcoming();
+                syncWaitingList(session, engine);
+                JsonObject root = new JsonObject();
+                root.addProperty("success", true);
+                root.add("waitList", JsonHelper.waitListToJson(engine.getWaitingList()));
+                out.print(root.toString());
+            } else if ("/api/player/jump".equals(path)) {
+                handleJump(request, session, out);
+            } else if ("/api/player/loop".equals(path)) {
+                AudioPlayEngine engine = getOrCreateEngine(session);
+                String mode = request.getParameter("mode");
+                engine.setRepeatAll("all".equals(mode));
+                engine.setRepeatOne("one".equals(mode));
+                JsonObject root = new JsonObject();
+                root.addProperty("success", true);
+                out.print(root.toString());
+            } else if ("/api/player/save-waiting".equals(path)) {
+                handleSaveWaiting(request, session, out);
+            } else if ("/api/player/remove".equals(path)) {
+                handleRemove(request, session, out);
+            } else if ("/api/player/reorder".equals(path)) {
+                handleReorder(request, session, out);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+            out.print("{\"error\":\"" + e.getMessage() + "\"}");
+        } finally {
+            out.flush();
+        }
+    }
+
+    private void handlePlay(HttpServletRequest request, HttpSession session, PrintWriter out)
+            throws Exception {
+        String songIdParam = request.getParameter("songId");
+        String playlistIdParam = request.getParameter("playlistId");
+
+        if (songIdParam == null || songIdParam.trim().isEmpty()) {
+            responseError(out, "Missing songId");
+            return;
+        }
+
+        int songId = Integer.parseInt(songIdParam);
+        Song song = songDAO.getById(songId);
+        if (song == null) {
+            responseError(out, "Song not found");
+            return;
+        }
+
+        IndexedDoublyLinkedList waitingList;
+        boolean inMemoryWaiting;
+
+        if (playlistIdParam != null && !playlistIdParam.trim().isEmpty()) {
+            waitingList = playlistDAO.loadWaitingList(Integer.parseInt(playlistIdParam));
+            inMemoryWaiting = false;
+        } else {
+            waitingList = AudioPlayEngine.buildQuickPlayQueue(song, songDAO);
+            inMemoryWaiting = true;
+        }
+
+        AudioPlayEngine previous = (AudioPlayEngine) session.getAttribute(SESSION_ENGINE);
+        AudioPlayEngine engine = new AudioPlayEngine(waitingList);
+        // Giữ lịch sử nghe xuyên suốt phiên: không reset khi phát bài/queue mới.
+        if (previous != null) {
+            engine.setPlaybackHistory(previous.getPlaybackHistory());
+            // Ghi nhận bài đang phát trước đó vào lịch sử (vì người dùng chuyển sang bài khác).
+            Song prevPlaying = previous.getCurrentSong();
+            if (prevPlaying != null && prevPlaying.getSongId() != song.getSongId()) {
+                engine.getPlaybackHistory().push(prevPlaying);
+            }
+        }
+        engine.playFromSong(song);
+        session.setAttribute(SESSION_ENGINE, engine);
+        session.setAttribute(SESSION_WAITING_LIST, waitingList);
+        session.setAttribute("waitingListInMemory", inMemoryWaiting);
+
+        JsonObject root = new JsonObject();
+        root.addProperty("success", true);
+        root.addProperty("inMemoryWaiting", inMemoryWaiting);
+        root.add("track", JsonHelper.songToJson(song));
+        root.add("waitList", JsonHelper.waitListToJson(waitingList));
+        out.print(root.toString());
+    }
+
+    private void handleSaveWaiting(HttpServletRequest request, HttpSession session, PrintWriter out)
+            throws Exception {
+        String name = request.getParameter("name");
+        if (name == null || name.trim().isEmpty()) {
+            responseError(out, "Playlist name is required");
+            return;
+        }
+
+        AudioPlayEngine engine = (AudioPlayEngine) session.getAttribute(SESSION_ENGINE);
+        if (engine == null || engine.getWaitingList() == null || engine.getWaitingList().getHead() == null) {
+            responseError(out, "No waiting list to save");
+            return;
+        }
+
+        int userId = (Integer) session.getAttribute("userId");
+        int playlistId = playlistDAO.saveWaitingListAsFavourite(userId, name.trim(), engine.getWaitingList());
+
+        JsonObject root = new JsonObject();
+        root.addProperty("success", playlistId > 0);
+        root.addProperty("playlistId", playlistId);
+        out.print(root.toString());
+    }
+
+    private AudioPlayEngine getOrCreateEngine(HttpSession session) {
+        AudioPlayEngine engine = (AudioPlayEngine) session.getAttribute(SESSION_ENGINE);
+        if (engine == null) {
+            IndexedDoublyLinkedList waitingList = new IndexedDoublyLinkedList();
+            engine = new AudioPlayEngine(waitingList);
+            session.setAttribute(SESSION_ENGINE, engine);
+            session.setAttribute(SESSION_WAITING_LIST, waitingList);
+            session.setAttribute("waitingListInMemory", true);
+        }
+        return engine;
+    }
+
+    private void syncWaitingList(HttpSession session, AudioPlayEngine engine) {
+        session.setAttribute(SESSION_WAITING_LIST, engine.getWaitingList());
+    }
+
+    private void writeCurrentResponse(PrintWriter out, AudioPlayEngine engine) {
+        Song track = engine.getCurrentSong();
+        JsonObject root = new JsonObject();
+        if (track != null) {
+            root.add("track", JsonHelper.songToJson(track));
+        }
+        root.add("waitList", JsonHelper.waitListToJson(engine.getWaitingList()));
+        if (engine.isRepeatOne()) {
+            root.addProperty("loop", "one");
+        } else if (engine.isRepeatAllEnabled()) {
+            root.addProperty("loop", "all");
+        } else {
+            root.addProperty("loop", "off");
+        }
+        out.print(root.toString());
+    }
+
+    private void writeTrackResponse(PrintWriter out, AudioPlayEngine engine, Song track) {
+        JsonObject root = new JsonObject();
+        if (track != null) {
+            root.add("track", JsonHelper.songToJson(track));
+        }
+        root.add("waitList", JsonHelper.waitListToJson(engine.getWaitingList()));
+        out.print(root.toString());
+    }
+
+    private void responseError(PrintWriter out, String message) {
+        JsonObject root = new JsonObject();
+        root.addProperty("error", message);
+        out.print(root.toString());
+    }
+
+    private boolean isLoggedIn(HttpServletRequest request) {
+        HttpSession session = request.getSession(false);
+        return session != null && session.getAttribute("user") != null;
+    }
+
+    private void handleRemove(HttpServletRequest request, HttpSession session, PrintWriter out)
+            throws Exception {
+        AudioPlayEngine engine = getOrCreateEngine(session);
+        int songId = Integer.parseInt(request.getParameter("songId"));
+
+        Song before = engine.getCurrentSong();
+        boolean wasCurrent = before != null && before.getSongId() == songId;
+        boolean removed = engine.removeSong(songId);
+        Song newCurrent = engine.getCurrentSong();
+
+        JsonObject root = new JsonObject();
+        root.addProperty("success", removed);
+        // Nếu xóa đúng bài đang phát, báo client chuyển sang bài hiện tại mới (hoặc dừng nếu rỗng).
+        root.addProperty("removedCurrent", wasCurrent && removed);
+        if (wasCurrent && removed && newCurrent != null) {
+            root.add("track", JsonHelper.songToJson(newCurrent));
+        }
+        root.add("waitList", JsonHelper.waitListToJson(engine.getWaitingList()));
+        out.print(root.toString());
+    }
+
+    private void handleJump(HttpServletRequest request, HttpSession session, PrintWriter out)
+            throws Exception {
+        AudioPlayEngine engine = getOrCreateEngine(session);
+        int songId = Integer.parseInt(request.getParameter("songId"));
+
+        Song track = engine.jumpTo(songId);
+
+        JsonObject root = new JsonObject();
+        root.addProperty("success", track != null);
+        if (track != null) {
+            root.add("track", JsonHelper.songToJson(track));
+        }
+        root.add("waitList", JsonHelper.waitListToJson(engine.getWaitingList()));
+        out.print(root.toString());
+    }
+
+    private void handleReorder(HttpServletRequest request, HttpSession session, PrintWriter out)
+            throws Exception {
+        AudioPlayEngine engine = getOrCreateEngine(session);
+        int songIdToMove = Integer.parseInt(request.getParameter("songIdToMove"));
+        int targetSongId = Integer.parseInt(request.getParameter("targetSongId"));
+
+        boolean moved = engine.getWaitingList().moveSongAfter(songIdToMove, targetSongId);
+
+        JsonObject root = new JsonObject();
+        root.addProperty("success", moved);
+        root.add("waitList", JsonHelper.waitListToJson(engine.getWaitingList()));
+        out.print(root.toString());
+    }
+}
