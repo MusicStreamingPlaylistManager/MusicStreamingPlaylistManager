@@ -21,13 +21,13 @@ public class DBUtils {
     // Bạn lấy thông tin này trên Supabase: Project Settings -> Database ->
     // Connection string -> JDBC
     // Lưu ý: Đổi URL, USER, PASSWORD theo đúng project của bạn
-    private static final String HOST = "aws-1-ap-southeast-2.pooler.supabase.com"; // Thay bằng Host của bạn (thường có
+    private static final String HOST = "aws-0-ap-southeast-1.pooler.supabase.com"; // Thay bằng Host của bạn (thường có
                                                                                    // chữ
     // pooler)
     private static final String PORT = "6543"; // Dùng cổng 6543 để hỗ trợ IPv4 (Connection Pooling)
     private static final String DBNAME = "postgres"; // Mặc định của Supabase luôn là postgres
-    private static final String USER = "postgres.justszxkwcdqcmswwvst"; // Thay bằng User của bạn
-    private static final String PASSWORD = "J2PUdVf6cG7DWX1F"; // Mật khẩu lúc bạn tạo project Supabase
+    private static final String USER = "postgres.wdqxtunkwlnumpsisgwp"; // Thay bằng User của bạn
+    private static final String PASSWORD = "EydcO1xYCmIUQSD2"; // Mật khẩu lúc bạn tạo project Supabase
 
     // Chuỗi kết nối JDBC cho Supabase
     // Cần thêm ?sslmode=require vì Supabase yêu cầu mã hóa SSL
