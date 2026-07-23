@@ -16,37 +16,14 @@ import java.sql.SQLException;
 public class DBUtils {
 
     // ==========================================
-    // CẤU HÌNH KẾT NỐI SUPABASE (ONLINE)
-    // ==========================================
-    // Bạn lấy thông tin này trên Supabase: Project Settings -> Database ->
-    // Connection string -> JDBC
-    // Lưu ý: Đổi URL, USER, PASSWORD theo đúng project của bạn
-    private static final String HOST = "aws-0-ap-southeast-1.pooler.supabase.com"; // Thay bằng Host của bạn (thường có
-                                                                                   // chữ
-    // pooler)
-    private static final String PORT = "6543"; // Dùng cổng 6543 để hỗ trợ IPv4 (Connection Pooling)
-    private static final String DBNAME = "postgres"; // Mặc định của Supabase luôn là postgres
-    private static final String USER = "postgres.wdqxtunkwlnumpsisgwp"; // Thay bằng User của bạn
-    private static final String PASSWORD = "EydcO1xYCmIUQSD2"; // Mật khẩu lúc bạn tạo project Supabase
-
-    // Chuỗi kết nối JDBC cho Supabase
-    // Cần thêm ?sslmode=require vì Supabase yêu cầu mã hóa SSL
-    // Trong JDBC, chuỗi URL bắt buộc phải bắt đầu bằng "jdbc:postgresql://"
-    // Supabase (khi dùng qua pooler) yêu cầu thêm prepareThreshold=0
-    private static final String URL = "jdbc:postgresql://" + HOST + ":" + PORT + "/" + DBNAME
-            + "?sslmode=require&prepareThreshold=0";
-
-    // ==========================================
     // CẤU HÌNH KẾT NỐI POSTGRESQL LOCAL (OFFLINE)
-    // (Bôi đen Ctrl + / để mở khóa khi cần dùng lại Local)
     // ==========================================
-    // private static final String HOST = "localhost";
-    // private static final String PORT = "5432";
-    // private static final String DBNAME = "music_streaming_db";
-    // private static final String USER = "postgres";
-    // private static final String PASSWORD = "123";
-    // private static final String URL = "jdbc:postgresql://" + HOST + ":" + PORT +
-    // "/" + DBNAME;
+    private static final String HOST = "localhost";
+    private static final String PORT = "5432";
+    private static final String DBNAME = "music_streaming_db";
+    private static final String USER = "postgres";
+    private static final String PASSWORD = "csd";
+    private static final String URL = "jdbc:postgresql://" + HOST + ":" + PORT + "/" + DBNAME;
 
     /**
      * Mở kết nối tới Database Local

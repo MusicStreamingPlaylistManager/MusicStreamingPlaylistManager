@@ -10,11 +10,6 @@
         <div class="player-name" id="bar-name">No track selected</div>
         <div class="player-artist" id="bar-artist">—</div>
       </div>
-      <button class="player-heart" id="bar-heart" data-song-id=""
-              onclick="App.toggleFavorite(App.getState().currentTrack?.songId, this)"
-              title="Favourite">
-        <svg><use href="#ic-heart"/></svg>
-      </button>
     </div>
 
     <div class="player-center">
@@ -57,48 +52,6 @@
 </div><div id="search-overlay" style="display:none; position:fixed; top:62px; left:260px; right:0; background:var(--surface); border-bottom:1px solid var(--border); z-index:50; padding:1rem 2rem; max-height:50vh; overflow-y:auto;">
   <div class="section-title" style="margin-bottom:0.75rem">Search Results</div>
   <div class="track-list" id="search-results-list"></div>
-</div>
-
-<!-- Add to Playlist Modal -->
-<div class="modal-bg" id="addToPlaylistModal" onclick="App.closeAddToPlaylistModal(event)">
-  <div class="modal spotify-playlist-modal" onclick="event.stopPropagation()">
-    <div class="modal-title">Add to playlist</div>
-    
-    <div class="playlist-search-wrap">
-      <svg class="search-icon" style="width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; flex-shrink: 0;" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-      <input type="text" id="playlistSearchInput" placeholder="Find a playlist" oninput="App.filterPlaylistModalList(this.value)">
-    </div>
-    
-    <div class="new-playlist-btn" onclick="App.openCreatePlaylistFromModal()">
-      <span class="plus-icon">➕</span>
-      <span class="label">New playlist</span>
-    </div>
-    
-    <hr class="modal-divider">
-    
-    <div class="playlist-sections-scroll" id="modalPlaylistSections">
-      <!-- Injected by JavaScript -->
-    </div>
-    
-    <div class="modal-actions" style="margin-top: auto;">
-      <button class="btn-cancel" onclick="App.closeAddToPlaylistModal()">Cancel</button>
-      <button class="btn-done" onclick="App.saveAddToPlaylistModal()">Done</button>
-    </div>
-  </div>
-</div>
-
-<!-- Create Playlist Modal (Global) -->
-<div class="modal-bg" id="modalCreatePlaylist" onclick="App.closeCreatePlaylistFromModal(event)">
-  <div class="modal" onclick="event.stopPropagation()">
-    <div class="modal-title">Create New Playlist</div>
-    <div class="modal-sub">Enter your playlist name</div>
-    <input class="modal-input" type="text" id="modalPlNameInput"
-           placeholder="Eg: Chill Vibes, Workout Mix..." maxlength="60">
-    <div class="modal-actions">
-      <button class="btn-cancel" onclick="App.closeCreatePlaylistFromModal()">Cancel</button>
-      <button class="btn-confirm" onclick="App.confirmCreatePlaylistFromModal()">Create</button>
-    </div>
-  </div>
 </div>
 
 <!-- Generic Confirm Dialog (App.confirm) -->

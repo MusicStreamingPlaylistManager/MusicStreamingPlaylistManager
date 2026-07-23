@@ -184,18 +184,8 @@
             <!-- Personalized Picks -->
             <div class="section-title">
                 Personalized Picks
-                <span class="section-more" onclick="spaNavigate('<%= request.getContextPath()%>/search.jsp')">All</span>
             </div>
             <div class="picks-grid" id="picksGrid">
-                <div style="color:var(--text3); font-size:.85rem; padding:.5rem">Loading...</div>
-            </div>
-
-            <!-- Recently Played -->
-            <div class="section-title">
-                Recently Played
-                <span class="section-more" onclick="spaNavigate('<%= request.getContextPath()%>/nowplaying.jsp')">All</span>
-            </div>
-            <div class="track-list" id="recentList">
                 <div style="color:var(--text3); font-size:.85rem; padding:.5rem">Loading...</div>
             </div>
 
@@ -224,17 +214,6 @@
             picksGrid.innerHTML = '<p style="color:var(--text3);font-size:.85rem">Không tải được nhạc: ' + songs.error + '. Kiểm tra PostgreSQL và file init.sql.</p>';
           } else {
             picksGrid.innerHTML = '<p style="color:var(--text3);font-size:.85rem">Không có bài hát trong database. Hãy chạy init.sql trong pgAdmin.</p>';
-          }
-
-          // Load recently played (chỉ lấy từ lịch sử nghe trong RAM của phiên hiện tại).
-          // Không fallback sang danh sách thư viện — sau khi logout, lịch sử rỗng thì hiện thông báo trống.
-          const history = await App.API.get('/api/player/history');
-          const recentList = document.getElementById('recentList');
-          if (history && history.songs && history.songs.length) {
-            recentList.innerHTML = history.songs.map((t, i) => renderTrackItem(t, i + 1)).join('');
-            App.fillMissingCovers();
-          } else {
-            recentList.innerHTML = '<p style="color:var(--text3);font-size:.85rem;padding:.5rem">Play a song to see your history here.</p>';
           }
         }
 

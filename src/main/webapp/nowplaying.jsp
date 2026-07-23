@@ -229,12 +229,10 @@
         </div>
       </div>
 
-      <!-- Right: Wait List -->
+      <!-- Right: Playlist -->
       <div class="wait-list-panel">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;gap:.75rem">
-          <div class="wl-title" style="margin:0">Wait List</div>
-          <button class="btn-confirm" style="font-size:.78rem;padding:.45rem .8rem;white-space:nowrap"
-                  onclick="saveWaitingList()">Save as Playlist</button>
+          <div class="wl-title" style="margin:0">Playlist</div>
         </div>
         <div id="waitListEl">
           <div class="wl-empty">No songs queued. Play a song to start.</div>
@@ -300,20 +298,6 @@ async function loadWaitList() {
 async function jumpToTrack(songId) {
   const res = await App.API.postForm('/api/player/jump', { songId });
   if (res && res.track) App.applyTrack(res.track, res.waitList);
-}
-
-async function saveWaitingList() {
-  const name = await App.prompt({
-    title: 'Save as playlist',
-    message: 'Enter a name for the new playlist',
-    placeholder: 'Eg: Chill Vibes, Workout Mix...',
-    okText: 'Save'
-  });
-  if (!name) return;
-  const id = await App.saveWaitingAsPlaylist(name);
-  if (id) {
-    spaNavigate('<%= request.getContextPath() %>/playlist-detail.jsp?id=' + id);
-  }
 }
 
 // Sync all np-ctrl active states

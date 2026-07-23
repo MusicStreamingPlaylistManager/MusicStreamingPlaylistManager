@@ -9,22 +9,23 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
+import lib.DoublyLinkedList;
 import lib.DynamicArrayList;
-import lib.IndexedDoublyLinkedList;
-import models.PlaylistDAO;
+import listeners.SongLibraryListener;
 import models.Song;
-import models.SongDAO;
 import utils.JsonHelper;
 
+/**
+ * Trung tâm điều khiển phát nhạc. KHÔNG truy vấn Database khi phát/nạp bài —
+ * mọi bài hát lấy từ thư viện đã pre-load trong RAM (ServletContext).
+ */
 @WebServlet(name = "PlayerServlet", urlPatterns = {
     "/api/player/play",
     "/api/player/next",
     "/api/player/prev",
     "/api/player/shuffle",
     "/api/player/loop",
-    "/api/player/history",
     "/api/player/waitlist",
-    "/api/player/save-waiting",
     "/api/player/remove",
     "/api/player/reorder",
     "/api/player/jump",
@@ -35,8 +36,23 @@ public class PlayerServlet extends HttpServlet {
     public static final String SESSION_ENGINE = "playEngine";
     public static final String SESSION_WAITING_LIST = "sessionWaitingList";
 
-    private final SongDAO songDAO = new SongDAO();
-    private final PlaylistDAO playlistDAO = new PlaylistDAO();
+    /** Lấy thư viện bài hát đã pre-load trong RAM (ServletContext). */
+    private DynamicArrayList getSongLibrary() {
+        Object attr = getServletContext().getAttribute(SongLibraryListener.SONG_LIBRARY_ATTR);
+        return (attr instanceof DynamicArrayList) ? (DynamicArrayList) attr : null;
+    }
+
+    /** Duyệt tuyến tính tìm bài theo id trong thư viện RAM. */
+    private Song findSongInLibrary(int songId) {
+        DynamicArrayList library = getSongLibrary();
+        if (library == null) return null;
+        for (int i = 0; i < library.size(); i++) {
+            if (library.get(i).getSongId() == songId) {
+                return library.get(i);
+            }
+        }
+        return null;
+    }
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
@@ -71,13 +87,9 @@ public class PlayerServlet extends HttpServlet {
             } else if ("/api/player/prev".equals(path)) {
                 Song track = engine.previousTrack();
                 writeTrackResponse(out, engine, track);
-            } else if ("/api/player/history".equals(path)) {
-                JsonObject root = new JsonObject();
-                root.add("songs", JsonHelper.songsToJsonArray(engine.getPlaybackHistory().toList()));
-                out.print(root.toString());
             } else if ("/api/player/waitlist".equals(path)) {
                 JsonObject root = new JsonObject();
-                root.add("waitList", JsonHelper.waitListToJson(engine.getWaitingList()));
+                root.add("waitList", JsonHelper.waitListToJson(engine.getPlaylist()));
                 out.print(root.toString());
             }
         } catch (Exception e) {
@@ -108,13 +120,12 @@ public class PlayerServlet extends HttpServlet {
             if ("/api/player/play".equals(path)) {
                 handlePlay(request, session, out);
             } else if ("/api/player/shuffle".equals(path)) {
-                // Shuffle là hành động một-lần: mỗi lần bấm trộn lại các bài SẮP TỚI.
                 AudioPlayEngine engine = getOrCreateEngine(session);
                 engine.shuffleUpcoming();
                 syncWaitingList(session, engine);
                 JsonObject root = new JsonObject();
                 root.addProperty("success", true);
-                root.add("waitList", JsonHelper.waitListToJson(engine.getWaitingList()));
+                root.add("waitList", JsonHelper.waitListToJson(engine.getPlaylist()));
                 out.print(root.toString());
             } else if ("/api/player/jump".equals(path)) {
                 handleJump(request, session, out);
@@ -126,8 +137,6 @@ public class PlayerServlet extends HttpServlet {
                 JsonObject root = new JsonObject();
                 root.addProperty("success", true);
                 out.print(root.toString());
-            } else if ("/api/player/save-waiting".equals(path)) {
-                handleSaveWaiting(request, session, out);
             } else if ("/api/player/remove".equals(path)) {
                 handleRemove(request, session, out);
             } else if ("/api/player/reorder".equals(path)) {
@@ -142,95 +151,53 @@ public class PlayerServlet extends HttpServlet {
         }
     }
 
+    /**
+     * Phát một bài lẻ: xóa hàng chờ cũ, tạo DoublyLinkedList MỚI chỉ chứa bài đó.
+     * Bài hát lấy từ thư viện RAM, KHÔNG query Database.
+     */
     private void handlePlay(HttpServletRequest request, HttpSession session, PrintWriter out)
             throws Exception {
         String songIdParam = request.getParameter("songId");
-        String playlistIdParam = request.getParameter("playlistId");
-
         if (songIdParam == null || songIdParam.trim().isEmpty()) {
             responseError(out, "Missing songId");
             return;
         }
 
         int songId = Integer.parseInt(songIdParam);
-        Song song = songDAO.getById(songId);
+        Song song = findSongInLibrary(songId);
         if (song == null) {
             responseError(out, "Song not found");
             return;
         }
 
-        IndexedDoublyLinkedList waitingList;
-        boolean inMemoryWaiting;
+        DynamicArrayList library = getSongLibrary();
+        DoublyLinkedList playlist = AudioPlayEngine.buildQuickPlayQueue(song);
 
-        if (playlistIdParam != null && !playlistIdParam.trim().isEmpty()) {
-            waitingList = playlistDAO.loadWaitingList(Integer.parseInt(playlistIdParam));
-            inMemoryWaiting = false;
-        } else {
-            waitingList = AudioPlayEngine.buildQuickPlayQueue(song, songDAO);
-            inMemoryWaiting = true;
-        }
-
-        AudioPlayEngine previous = (AudioPlayEngine) session.getAttribute(SESSION_ENGINE);
-        AudioPlayEngine engine = new AudioPlayEngine(waitingList);
-        // Giữ lịch sử nghe xuyên suốt phiên: không reset khi phát bài/queue mới.
-        if (previous != null) {
-            engine.setPlaybackHistory(previous.getPlaybackHistory());
-            // Ghi nhận bài đang phát trước đó vào lịch sử (vì người dùng chuyển sang bài khác).
-            Song prevPlaying = previous.getCurrentSong();
-            if (prevPlaying != null && prevPlaying.getSongId() != song.getSongId()) {
-                engine.getPlaybackHistory().push(prevPlaying);
-            }
-        }
+        AudioPlayEngine engine = new AudioPlayEngine(playlist, library);
         engine.playFromSong(song);
         session.setAttribute(SESSION_ENGINE, engine);
-        session.setAttribute(SESSION_WAITING_LIST, waitingList);
-        session.setAttribute("waitingListInMemory", inMemoryWaiting);
+        session.setAttribute(SESSION_WAITING_LIST, playlist);
 
         JsonObject root = new JsonObject();
         root.addProperty("success", true);
-        root.addProperty("inMemoryWaiting", inMemoryWaiting);
         root.add("track", JsonHelper.songToJson(song));
-        root.add("waitList", JsonHelper.waitListToJson(waitingList));
-        out.print(root.toString());
-    }
-
-    private void handleSaveWaiting(HttpServletRequest request, HttpSession session, PrintWriter out)
-            throws Exception {
-        String name = request.getParameter("name");
-        if (name == null || name.trim().isEmpty()) {
-            responseError(out, "Playlist name is required");
-            return;
-        }
-
-        AudioPlayEngine engine = (AudioPlayEngine) session.getAttribute(SESSION_ENGINE);
-        if (engine == null || engine.getWaitingList() == null || engine.getWaitingList().getHead() == null) {
-            responseError(out, "No waiting list to save");
-            return;
-        }
-
-        int userId = (Integer) session.getAttribute("userId");
-        int playlistId = playlistDAO.saveWaitingListAsFavourite(userId, name.trim(), engine.getWaitingList());
-
-        JsonObject root = new JsonObject();
-        root.addProperty("success", playlistId > 0);
-        root.addProperty("playlistId", playlistId);
+        root.add("waitList", JsonHelper.waitListToJson(playlist));
         out.print(root.toString());
     }
 
     private AudioPlayEngine getOrCreateEngine(HttpSession session) {
         AudioPlayEngine engine = (AudioPlayEngine) session.getAttribute(SESSION_ENGINE);
         if (engine == null) {
-            IndexedDoublyLinkedList waitingList = new IndexedDoublyLinkedList();
-            engine = new AudioPlayEngine(waitingList);
+            DoublyLinkedList playlist = new DoublyLinkedList();
+            engine = new AudioPlayEngine(playlist, getSongLibrary());
             session.setAttribute(SESSION_ENGINE, engine);
-            session.setAttribute(SESSION_WAITING_LIST, waitingList);
-            session.setAttribute("waitingListInMemory", true);
+            session.setAttribute(SESSION_WAITING_LIST, playlist);
         }
         return engine;
     }
 
     private void syncWaitingList(HttpSession session, AudioPlayEngine engine) {
-        session.setAttribute(SESSION_WAITING_LIST, engine.getWaitingList());
+        session.setAttribute(SESSION_WAITING_LIST, engine.getPlaylist());
     }
 
     private void writeCurrentResponse(PrintWriter out, AudioPlayEngine engine) {
@@ -239,7 +206,7 @@ public class PlayerServlet extends HttpServlet {
         if (track != null) {
             root.add("track", JsonHelper.songToJson(track));
         }
-        root.add("waitList", JsonHelper.waitListToJson(engine.getWaitingList()));
+        root.add("waitList", JsonHelper.waitListToJson(engine.getPlaylist()));
         if (engine.isRepeatOne()) {
             root.addProperty("loop", "one");
         } else if (engine.isRepeatAllEnabled()) {
@@ -255,7 +222,7 @@ public class PlayerServlet extends HttpServlet {
         if (track != null) {
             root.add("track", JsonHelper.songToJson(track));
         }
-        root.add("waitList", JsonHelper.waitListToJson(engine.getWaitingList()));
+        root.add("waitList", JsonHelper.waitListToJson(engine.getPlaylist()));
         out.print(root.toString());
     }
 
@@ -282,12 +249,11 @@ public class PlayerServlet extends HttpServlet {
 
         JsonObject root = new JsonObject();
         root.addProperty("success", removed);
-        // Nếu xóa đúng bài đang phát, báo client chuyển sang bài hiện tại mới (hoặc dừng nếu rỗng).
         root.addProperty("removedCurrent", wasCurrent && removed);
         if (wasCurrent && removed && newCurrent != null) {
             root.add("track", JsonHelper.songToJson(newCurrent));
         }
-        root.add("waitList", JsonHelper.waitListToJson(engine.getWaitingList()));
+        root.add("waitList", JsonHelper.waitListToJson(engine.getPlaylist()));
         out.print(root.toString());
     }
 
@@ -303,7 +269,7 @@ public class PlayerServlet extends HttpServlet {
         if (track != null) {
             root.add("track", JsonHelper.songToJson(track));
         }
-        root.add("waitList", JsonHelper.waitListToJson(engine.getWaitingList()));
+        root.add("waitList", JsonHelper.waitListToJson(engine.getPlaylist()));
         out.print(root.toString());
     }
 
@@ -313,11 +279,11 @@ public class PlayerServlet extends HttpServlet {
         int songIdToMove = Integer.parseInt(request.getParameter("songIdToMove"));
         int targetSongId = Integer.parseInt(request.getParameter("targetSongId"));
 
-        boolean moved = engine.getWaitingList().moveSongAfter(songIdToMove, targetSongId);
+        boolean moved = engine.getPlaylist().moveSongBefore(songIdToMove, targetSongId);
 
         JsonObject root = new JsonObject();
         root.addProperty("success", moved);
-        root.add("waitList", JsonHelper.waitListToJson(engine.getWaitingList()));
+        root.add("waitList", JsonHelper.waitListToJson(engine.getPlaylist()));
         out.print(root.toString());
     }
 }

@@ -2,8 +2,8 @@ package utils;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
+import lib.DoublyLinkedList;
 import lib.DynamicArrayList;
-import lib.IndexedDoublyLinkedList;
 import models.Song;
 
 public class JsonHelper {
@@ -34,7 +34,7 @@ public class JsonHelper {
         return jsonArray;
     }
 
-    public static JsonArray waitListToJson(IndexedDoublyLinkedList waitingList) {
-        return songsToJsonArray(waitingList != null ? waitingList.toSongList() : null);
+    public static JsonArray waitListToJson(DoublyLinkedList playlist) {
+        return songsToJsonArray(playlist != null ? playlist.toSongList() : null);
     }
 }

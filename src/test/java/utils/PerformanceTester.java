@@ -1,8 +1,7 @@
 package utils;
 
+import lib.DoublyLinkedList;
 import lib.DynamicArrayList;
-import lib.HistoryStack;
-import lib.IndexedDoublyLinkedList;
 import lib.MergeSort;
 import lib.SongSearchEngine;
 import models.Song;
@@ -33,9 +32,8 @@ public class PerformanceTester {
         testSearchByTitleContains(searchEngine);
 
         // 3. Kiểm thử các cấu trúc dữ liệu lưu trữ
-        testIndexedDoublyLinkedList(sortedLibrary);
+        testDoublyLinkedList(sortedLibrary);
         testDynamicArrayList();
-        testHistoryStack(sortedLibrary);
     }
 
     private static DynamicArrayList generateMockData(int count) {
@@ -85,9 +83,9 @@ public class PerformanceTester {
         System.out.println(" -> Total matching results: " + results.size());
     }
 
-    private static void testIndexedDoublyLinkedList(DynamicArrayList library) {
-        System.out.println("\n[4] Indexed Doubly Linked List Data Structure (Theoretical complexity: O(1))");
-        IndexedDoublyLinkedList playlist = new IndexedDoublyLinkedList();
+    private static void testDoublyLinkedList(DynamicArrayList library) {
+        System.out.println("\n[4] Doubly Linked List Data Structure (locate by ID: Linear Search O(N), pointer relink O(1))");
+        DoublyLinkedList playlist = new DoublyLinkedList();
 
         long startTime = System.nanoTime();
         for (int i = 0; i < library.size(); i++) {
@@ -98,7 +96,7 @@ public class PerformanceTester {
         System.out
                 .println(" -> Sequentially adding " + library.size() + " songs to playlist took: " + addDurationMs + " ms");
 
-        // Đo thao tác dịch chuyển nút bằng HashMap định vị địa chỉ ô nhớ trong O(1)
+        // Định vị node bằng Linear Search O(N), sau đó nối lại con trỏ O(1)
         int moveId = library.get(NUM_SONGS - 1).getSongId();
         int targetId = library.get(0).getSongId();
         startTime = System.nanoTime();
@@ -106,7 +104,7 @@ public class PerformanceTester {
         endTime = System.nanoTime();
         System.out.println(" -> Drag and drop reordering (Reorder) took: " + (endTime - startTime) + " ns");
 
-        // Đo thao tác xóa trực tiếp nút trong O(1)
+        // Xóa node theo ID: duyệt tuyến tính tìm node rồi gỡ O(1)
         int removeId = library.get(NUM_SONGS / 4).getSongId();
         startTime = System.nanoTime();
         playlist.removeById(removeId);
@@ -134,21 +132,4 @@ public class PerformanceTester {
                 " -> Random access of element by index (Random Access) took: " + (endTime - startTime) + " ns");
     }
 
-    private static void testHistoryStack(DynamicArrayList library) {
-        System.out.println("\n[6] History Stack Data Structure (Theoretical complexity: O(1))");
-        HistoryStack stack = new HistoryStack();
-
-        long startTime = System.nanoTime();
-        for (int i = 0; i < 30; i++) { // Giới hạn đúng 30 để đạt O(1) không dính vòng lặp giải phóng bộ nhớ
-            stack.push(library.get(i));
-        }
-        long endTime = System.nanoTime();
-        System.out.println(" -> Pushing 30 consecutive songs to Stack took: " + (endTime - startTime) + " ns");
-
-        startTime = System.nanoTime();
-        stack.pop();
-        endTime = System.nanoTime();
-        System.out
-                .println(" -> Popping 1 element from the top of the Stack (Rollback) took: " + (endTime - startTime) + " ns");
-    }
 }

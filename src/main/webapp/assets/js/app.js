@@ -19,11 +19,7 @@ const App = (() => {
     isLoop: false,        // false | 'one' | 'all'
     progressPct: 0,
     volume: 75,
-    waitList: [],         // array of track objects (in-memory DLL on server, reflected here)
-    favorites: new Set(),
-    activeSongIdForModal: null,
-    modalPlaylists: [],
-    originalModalPlaylists: [],
+    playlist: [],         // hàng chờ phát (phản chiếu DoublyLinkedList trên server)
   };
 
   let progressSeconds = 0;
@@ -243,213 +239,6 @@ const App = (() => {
     document.querySelectorAll('.vol-slider').forEach(s => s.value = val);
   }
 
-  async function saveWaitingAsPlaylist(name) {
-    const res = await API.postForm('/api/player/save-waiting', { name });
-    if (res && res.success) {
-      showToast('✅ Saved as playlist');
-      return res.playlistId;
-    }
-    showToast('⚠ Could not save playlist');
-    return null;
-  }
-
-  // Favorites
-  async function toggleFavorite(songId, btn) {
-    if (!songId) return;
-    await showAddToPlaylistModal(songId);
-  }
-
-  // Seed favorites from server on page load
-  async function loadFavorites() {
-    const res = await API.get('/api/favorites');
-    if (res && res.songIds) {
-      state.favorites = new Set(res.songIds);
-      if (state.currentTrack) {
-        syncHeartButtons(state.currentTrack.songId, state.favorites.has(state.currentTrack.songId));
-      }
-    }
-  }
-
-  async function showAddToPlaylistModal(songId) {
-    if (!songId) return;
-    state.activeSongIdForModal = parseInt(songId, 10);
-    const modal = document.getElementById('addToPlaylistModal');
-    const search = document.getElementById('playlistSearchInput');
-    const target = document.getElementById('modalPlaylistSections');
-    if (!modal || !target) return;
-    if (search) search.value = '';
-    modal.classList.add('show');
-    target.innerHTML = '<div class="modal-empty-state">Loading playlists...</div>';
-    const res = await API.get('/api/playlists?songId=' + encodeURIComponent(state.activeSongIdForModal));
-    if (!res || res._failed || !res.playlists) {
-      target.innerHTML = '<div class="modal-empty-state">Could not load playlists.</div>';
-      return;
-    }
-    state.modalPlaylists = JSON.parse(JSON.stringify(res.playlists || []));
-    state.originalModalPlaylists = JSON.parse(JSON.stringify(res.playlists || []));
-    renderModalPlaylists(state.modalPlaylists);
-  }
-
-  function closeAddToPlaylistModal(event) {
-    if (event && event.target && event.target.id !== 'addToPlaylistModal') return;
-    const modal = document.getElementById('addToPlaylistModal');
-    if (modal) modal.classList.remove('show');
-  }
-
-  function renderModalPlaylists(playlists) {
-    const target = document.getElementById('modalPlaylistSections');
-    if (!target) return;
-    const list = playlists || [];
-    const defaultPlaylists = list.filter(pl => pl.isDefault);
-    const customPlaylists = list.filter(pl => !pl.isDefault);
-    const renderRow = (pl) => {
-      const checked = !!pl.containsSong;
-      const icon = pl.isDefault
-        ? '<div class="modal-playlist-icon liked-icon"><svg><use href="#ic-heart"/></svg></div>'
-        : '<div class="modal-playlist-icon music-icon">♪</div>';
-      const songCount = pl.songCount || 0;
-      const countText = songCount + (songCount === 1 ? ' song' : ' songs');
-      return `
-        <div class="modal-playlist-row ${checked ? 'checked' : ''}"
-             data-playlist-name="${_escapeAttr(pl.name || '')}">
-          ${icon}
-          <span class="modal-playlist-info">
-            <span class="modal-playlist-name">${_escapeHtml(pl.name || 'Untitled playlist')}</span>
-            <span class="modal-playlist-meta">${countText}</span>
-          </span>
-          <span class="modal-checkmark-btn ${checked ? 'checked' : ''}"
-                onclick="event.stopPropagation(); App.toggleSongInPlaylist(${pl.playlistId}, ${checked}, ${!!pl.isDefault})"
-                title="${checked ? 'Remove from playlist' : 'Add to playlist'}">
-            ${checked ? '✓' : ''}
-          </span>
-        </div>`;
-    };
-    let html = '';
-    if (defaultPlaylists.length) {
-      html += '<div class="modal-section-label">Saved in</div>';
-      html += defaultPlaylists.map(renderRow).join('');
-    }
-    html += '<div class="modal-section-label">Recently updated</div>';
-    html += customPlaylists.length
-      ? customPlaylists.map(renderRow).join('')
-      : '<div class="modal-empty-state">No custom playlists found.</div>';
-    target.innerHTML = html;
-  }
-
-  function toggleSongInPlaylist(playlistId, isCurrentlyChecked, isDefault) {
-    const songId = state.activeSongIdForModal;
-    if (!songId || !playlistId) return;
-    state.modalPlaylists = state.modalPlaylists.map(pl => {
-      if (pl.playlistId !== playlistId) return pl;
-      const next = Object.assign({}, pl);
-      next.containsSong = !isCurrentlyChecked;
-      next.songCount = Math.max(0, (next.songCount || 0) + (isCurrentlyChecked ? -1 : 1));
-      return next;
-    });
-    renderModalPlaylists(state.modalPlaylists);
-  }
-
-  async function saveAddToPlaylistModal() {
-    const songId = state.activeSongIdForModal;
-    if (!songId) {
-      closeAddToPlaylistModal();
-      return;
-    }
-    const changes = [];
-    for (let i = 0; i < state.modalPlaylists.length; i++) {
-      const pl = state.modalPlaylists[i];
-      const orig = state.originalModalPlaylists.find(o => o.playlistId === pl.playlistId);
-      if (orig && orig.containsSong !== pl.containsSong) {
-        changes.push({
-          playlistId: pl.playlistId,
-          add: pl.containsSong,
-          isDefault: pl.isDefault
-        });
-      }
-    }
-    if (changes.length === 0) {
-      closeAddToPlaylistModal();
-      return;
-    }
-    const promises = changes.map(change => {
-      const url = change.add ? '/api/playlists/addSong' : '/api/playlists/removeSong';
-      return API.postForm(url, { playlistId: change.playlistId, songId });
-    });
-    await Promise.all(promises);
-    const defaultFav = state.modalPlaylists.find(pl => pl.isDefault);
-    if (defaultFav) {
-      syncHeartButtons(songId, defaultFav.containsSong);
-      if (defaultFav.containsSong) {
-        state.favorites.add(songId);
-      } else {
-        state.favorites.delete(songId);
-      }
-    }
-    showToast('Add successfully');
-    if (typeof renderFavourites === 'function') renderFavourites();
-    if (typeof loadDetail === 'function') loadDetail();
-    closeAddToPlaylistModal();
-  }
-
-  function filterPlaylistModalList(query) {
-    const q = (query || '').trim().toLowerCase();
-    if (!q) {
-      renderModalPlaylists(state.modalPlaylists);
-      return;
-    }
-    renderModalPlaylists(state.modalPlaylists.filter(pl => (pl.name || '').toLowerCase().includes(q)));
-  }
-
-  function openCreatePlaylistFromModal() {
-    const modal = document.getElementById('modalCreatePlaylist');
-    const input = document.getElementById('modalPlNameInput');
-    if (input) input.value = '';
-    if (modal) modal.classList.add('show');
-    setTimeout(() => input && input.focus(), 0);
-  }
-
-  function closeCreatePlaylistFromModal(event) {
-    if (event && event.target && event.target.id !== 'modalCreatePlaylist') return;
-    const modal = document.getElementById('modalCreatePlaylist');
-    if (modal) modal.classList.remove('show');
-  }
-
-  async function confirmCreatePlaylistFromModal() {
-    const input = document.getElementById('modalPlNameInput');
-    const name = input ? input.value.trim() : '';
-    const songId = state.activeSongIdForModal;
-    if (!name) {
-      showToast('Playlist name is required');
-      return;
-    }
-    const createRes = await API.postForm('/api/playlists/create', { name });
-    if (!createRes || !createRes.success || !createRes.playlistId || createRes.playlistId <= 0) {
-      showToast('Could not create playlist');
-      return;
-    }
-    if (songId) {
-      await API.postForm('/api/playlists/addSong', {
-        playlistId: createRes.playlistId,
-        songId
-      });
-    }
-    closeCreatePlaylistFromModal();
-    showToast('Playlist created');
-    if (songId) await showAddToPlaylistModal(songId);
-  }
-
-  function syncHeartButtons(songId, isLiked) {
-    if (!songId) return;
-    const id = parseInt(songId, 10);
-    if (isLiked) state.favorites.add(id);
-    else state.favorites.delete(id);
-    document.querySelectorAll(`[data-song-id="${id}"]`).forEach(btn => {
-      if (btn.classList && (btn.classList.contains('heart-btn') || btn.classList.contains('player-heart'))) {
-        btn.classList.toggle('liked', isLiked);
-      }
-    });
-  }
-
   function _escapeHtml(value) {
     return String(value)
       .replace(/&/g, '&amp;')
@@ -510,11 +299,6 @@ const App = (() => {
     if (document.getElementById('np-title')) document.getElementById('np-title').textContent = t.title;
     if (document.getElementById('np-artist')) document.getElementById('np-artist').textContent = t.artist;
 
-    const heart = document.getElementById('bar-heart');
-    if (heart) {
-        heart.dataset.songId = t.songId;
-        heart.classList.toggle('liked', state.favorites.has(t.songId));
-    }
     _updatePlayBtns();
     _updateProgressUI();
     }
@@ -551,13 +335,13 @@ const App = (() => {
   }
 
   function _setWaitList(list) {
-    state.waitList = list;
+    state.playlist = list;
     _syncWaitList();
   }
 
   function _syncWaitList() {
-    // Re-render wait list on now playing page if visible
-    if (typeof renderWaitList === 'function') renderWaitList(state.waitList);
+    // Re-render playlist on now playing page if visible
+    if (typeof renderWaitList === 'function') renderWaitList(state.playlist);
   }
 
   // --- Utils ---
@@ -709,8 +493,6 @@ const App = (() => {
   const ROUTE_FILES = {
     'home.jsp': 'home',
     'search.jsp': 'search',
-    'playlist.jsp': 'playlist',
-    'playlist-detail.jsp': 'playlist-detail',
     'nowplaying.jsp': 'nowplaying',
     'profile.jsp': 'profile',
   };
@@ -898,13 +680,11 @@ const App = (() => {
     initProgressBars();
     initVolume();
     initKeyboard();
-    await loadFavorites();
     await restorePlayerState();
     Router.init();
   }
 
   function renderTrackItem(t, num) {
-    const isFav = state.favorites.has(t.songId);
     const cover = t.coverPath
       ? `<img src="${t.coverPath}" alt="">`
       : `<span style="font-size:1.3rem">${t.emoji || '🎵'}</span>`;
@@ -919,16 +699,6 @@ const App = (() => {
         <div class="t-artist">${t.artist}</div>
       </div>
       <div class="track-actions">
-        <button class="heart-btn ${isFav ? 'liked' : ''}"
-                data-song-id="${t.songId}"
-                onclick="event.stopPropagation(); App.toggleFavorite(${t.songId}, this)"
-                title="Favourite">
-          <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor"
-               fill="${isFav ? 'currentColor' : 'none'}"
-               stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/>
-          </svg>
-        </button>
         <span class="track-dur">${t.durationStr || ''}</span>
       </div>
     </div>`;
@@ -1018,12 +788,8 @@ async function fillMissingCovers() {
   return {
     init, state, API, Router,
     playTrack, applyTrack, togglePlay, stopPlayback, nextTrack, prevTrack,
-    shuffle, toggleLoop, seekTo, setVolume, toggleFavorite, saveWaitingAsPlaylist,
+    shuffle, toggleLoop, seekTo, setVolume,
     showToast, confirm: appConfirm, prompt: appPrompt,
-    loadFavorites, showAddToPlaylistModal, closeAddToPlaylistModal, saveAddToPlaylistModal,
-    renderModalPlaylists, toggleSongInPlaylist, filterPlaylistModalList,
-    openCreatePlaylistFromModal, closeCreatePlaylistFromModal,
-    confirmCreatePlaylistFromModal, syncHeartButtons,
     getState: () => state,
     renderTrackItem,
     fillMissingCovers,

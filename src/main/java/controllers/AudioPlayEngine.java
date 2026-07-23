@@ -1,84 +1,77 @@
 package controllers;
 
 import java.util.Random;
+import lib.DoublyLinkedList;
 import lib.DynamicArrayList;
-import lib.HistoryStack;
-import lib.IndexedDoublyLinkedList;
 import lib.Node;
 import models.Song;
-import models.SongDAO;
 
+/**
+ * Cỗ máy quản lý phiên phát nhạc.
+ *
+ * KHÔNG truy vấn Database. Toàn bộ dữ liệu bài hát được lấy từ thư viện đã
+ * pre-load sẵn trong RAM (DynamicArrayList songLibrary, nạp lúc server khởi
+ * động qua SongLibraryUtils/ServletContext).
+ *
+ * Hàng chờ phát là một DoublyLinkedList nguyên bản (không HashMap).
+ */
 public class AudioPlayEngine {
     private Node currentTrackPointer;
-    private IndexedDoublyLinkedList waitingList;
-    private HistoryStack playbackHistory;
+    private DoublyLinkedList playlist;
     private boolean isRepeatAllEnabled = false;
     private boolean repeatOne = false;
-    private final SongDAO songDAO = new SongDAO();
 
-    public AudioPlayEngine(IndexedDoublyLinkedList waitingList) {
-        this.waitingList = waitingList;
-        this.currentTrackPointer = waitingList.getHead();
-        this.playbackHistory = new HistoryStack();
+    // Tham chiếu tới thư viện bài hát trong RAM (dùng cho autoAppendSongs).
+    private final DynamicArrayList songLibrary;
+
+    public AudioPlayEngine(DoublyLinkedList playlist, DynamicArrayList songLibrary) {
+        this.playlist = playlist;
+        this.songLibrary = songLibrary;
+        this.currentTrackPointer = playlist.getHead();
     }
 
     public Song getCurrentSong() {
         return currentTrackPointer != null ? currentTrackPointer.data : null;
     }
 
-    public IndexedDoublyLinkedList getWaitingList() {
-        return waitingList;
-    }
-
-    public HistoryStack getPlaybackHistory() {
-        return playbackHistory;
-    }
-
-    // Cho phép giữ lại lịch sử nghe khi tạo engine mới (phát bài/queue khác trong cùng phiên).
-    public void setPlaybackHistory(HistoryStack history) {
-        if (history != null) {
-            this.playbackHistory = history;
-        }
+    public DoublyLinkedList getPlaylist() {
+        return playlist;
     }
 
     public void playFromSong(Song song) {
         if (song == null) return;
-        Node node = waitingList.getNodeById(song.getSongId());
+        Node node = playlist.getNodeById(song.getSongId());
         if (node != null) {
             currentTrackPointer = node;
         }
     }
 
     /**
-     * Dời con trỏ phát tới một bài đã có sẵn trong hàng chờ (KHÔNG dựng lại hàng chờ).
-     * Dùng khi người dùng bấm một bài trong Wait List.
+     * Dời con trỏ phát tới một bài đã có trong hàng chờ (tìm bằng Linear Search).
      */
     public Song jumpTo(int songId) {
-        Node node = waitingList.getNodeById(songId);
+        Node node = playlist.getNodeById(songId);
         if (node == null) return null;
         currentTrackPointer = node;
         return node.data;
     }
 
     /**
-     * Xóa một bài khỏi hàng chờ và GIỮ con trỏ phát hợp lệ.
-     * Nếu xóa đúng bài đang phát thì dời con trỏ sang bài kế tiếp (hoặc trước đó,
-     * hoặc null nếu hàng chờ rỗng) để Next/Prev không trỏ vào node đã tách rời.
+     * Xóa một bài khỏi hàng chờ và giữ con trỏ phát hợp lệ.
      */
     public boolean removeSong(int songId) {
-        Node node = waitingList.getNodeById(songId);
+        Node node = playlist.getNodeById(songId);
         if (node == null) return false;
 
         if (currentTrackPointer == node) {
             currentTrackPointer = (node.next != null) ? node.next : node.prev;
         }
-        return waitingList.removeById(songId);
+        return playlist.removeById(songId);
     }
 
     public Song nextTrack() {
-        // Con trỏ null nhưng hàng chờ còn bài (vd: vừa xóa bài đầu đang phát) → phát từ đầu.
         if (currentTrackPointer == null) {
-            currentTrackPointer = waitingList.getHead();
+            currentTrackPointer = playlist.getHead();
             return currentTrackPointer != null ? currentTrackPointer.data : null;
         }
 
@@ -86,18 +79,17 @@ public class AudioPlayEngine {
             return currentTrackPointer.data;
         }
 
-        playbackHistory.push(currentTrackPointer.data);
-
         if (currentTrackPointer.next != null) {
             currentTrackPointer = currentTrackPointer.next;
             return currentTrackPointer.data;
         }
 
         if (isRepeatAllEnabled) {
-            currentTrackPointer = waitingList.getHead();
+            currentTrackPointer = playlist.getHead();
             return currentTrackPointer != null ? currentTrackPointer.data : null;
         }
 
+        // Hết hàng chờ → tự nạp thêm 10 bài cùng thể loại TỪ RAM.
         autoAppendSongs();
         if (currentTrackPointer.next != null) {
             currentTrackPointer = currentTrackPointer.next;
@@ -107,17 +99,17 @@ public class AudioPlayEngine {
         return null;
     }
 
+    /**
+     * Previous: chỉ dùng con trỏ lùi (prev) của danh sách liên kết đôi để quay về
+     * bài ĐỨNG NGAY TRƯỚC trong hàng chờ — KHÔNG dựa vào lịch sử nghe. Nếu đang ở
+     * đầu danh sách thì không có bài trước, trả về null.
+     */
     public Song previousTrack() {
-        if (playbackHistory.isEmpty()) {
+        if (currentTrackPointer == null || currentTrackPointer.prev == null) {
             return null;
         }
-
-        Song previousSong = playbackHistory.pop();
-        Node node = waitingList.getNodeById(previousSong.getSongId());
-        if (node != null) {
-            currentTrackPointer = node;
-        }
-        return previousSong;
+        currentTrackPointer = currentTrackPointer.prev;
+        return currentTrackPointer.data;
     }
 
     public void setRepeatAll(boolean status) {
@@ -154,6 +146,7 @@ public class AudioPlayEngine {
             temp = temp.next;
         }
 
+        // Fisher–Yates
         Random random = new Random();
         for (int i = songs.size() - 1; i > 0; i--) {
             int j = random.nextInt(i + 1);
@@ -162,6 +155,8 @@ public class AudioPlayEngine {
             songs.set(j, tempSong);
         }
 
+        // Ghi ngược lại vào các node phía sau con trỏ. Không cần dựng lại chỉ mục
+        // vì DoublyLinkedList tra cứu bằng Linear Search trên chính data hiện tại.
         temp = currentTrackPointer.next;
         int index = 0;
         while (temp != null) {
@@ -169,36 +164,36 @@ public class AudioPlayEngine {
             temp = temp.next;
             index++;
         }
-
-        // Quan trọng: vì đã ghi đè data của các node, phải dựng lại HashMap id→Node,
-        // nếu không jumpTo/removeById/contains sẽ trỏ sai node sau khi shuffle.
-        waitingList.rebuildIndex();
     }
 
+    /**
+     * Lọc 10 bài cùng thể loại với bài hiện tại TỪ THƯ VIỆN TRONG RAM
+     * (loại trừ các bài đã có trong hàng chờ) rồi nối vào cuối. KHÔNG chạm DB.
+     */
     public void autoAppendSongs() {
-        if (currentTrackPointer == null) return;
+        if (currentTrackPointer == null || songLibrary == null) return;
 
         String genre = currentTrackPointer.data.getGenre();
-        try {
-            DynamicArrayList songs = songDAO.getSongsByGenre(genre, 10);
-            for (int i = 0; i < songs.size(); i++) {
-                Song song = songs.get(i);
-                if (!waitingList.contains(song.getSongId())) {
-                    waitingList.append(song);
-                }
+        if (genre == null) return;
+
+        int added = 0;
+        for (int i = 0; i < songLibrary.size() && added < 10; i++) {
+            Song song = songLibrary.get(i);
+            if (song.getGenre() != null
+                    && song.getGenre().equalsIgnoreCase(genre)
+                    && !playlist.contains(song.getSongId())) {
+                playlist.append(song);
+                added++;
             }
-        } catch (Exception e) {
-            e.printStackTrace();
         }
     }
 
     /**
-     * Khi phát một bài lẻ (trang chủ / search / thể loại / một bài trong playlist),
-     * hàng chờ CHỈ gồm bài đó. Khi phát hết, nextTrack() sẽ tự nạp thêm qua autoAppendSongs()
-     * — đúng như mô tả trong report. songDAO giữ lại cho tương thích chữ ký gọi.
+     * Khi phát một bài lẻ (Home / Search): tạo một DoublyLinkedList MỚI chỉ gồm
+     * đúng bài đó. Các bài kế tiếp do autoAppendSongs() tự nạp thêm khi hết hàng.
      */
-    public static IndexedDoublyLinkedList buildQuickPlayQueue(Song selected, SongDAO songDAO) throws Exception {
-        IndexedDoublyLinkedList list = new IndexedDoublyLinkedList();
+    public static DoublyLinkedList buildQuickPlayQueue(Song selected) {
+        DoublyLinkedList list = new DoublyLinkedList();
         list.append(selected);
         return list;
     }
